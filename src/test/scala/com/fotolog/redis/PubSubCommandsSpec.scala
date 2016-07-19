@@ -42,4 +42,23 @@ class PubSubCommandsSpec extends FlatSpec with Matchers with TestClient {
     msgRes shouldEqual "1pub msg"
   }
 
+  "A unsubscribe all" should "work correctly" in {
+    var channelsRes = "not used"
+    var msgsRes = "not used"
+
+    subscriber.subscribe[String]("test", "test1"){(channel, msg) =>
+      channelsRes = channel
+      msgsRes = msg
+    }
+    publisher.publish[String]("test", "Hello")
+    publisher1.publish[String]("test1", "Hallo")
+
+    channelsRes shouldEqual "test1"
+    msgsRes shouldEqual "Hallo"
+
+    subscriber.unsubscribe
+
+    publisher.publish[String]("test", "Hello") shouldEqual 0
+    publisher1.publish[String]("test1", "Hallo") shouldEqual 0
+  }
 }

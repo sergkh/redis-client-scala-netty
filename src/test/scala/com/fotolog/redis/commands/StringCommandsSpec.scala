@@ -50,7 +50,7 @@ class StringCommandsSpec extends FlatSpec with Matchers with TestClient {
     c.setXx("key", 15, 2) shouldBe true
     c.get[Int]("key") shouldEqual Some(15)
     c.ttl("key") shouldEqual 2
-    Thread.sleep(2000)
+      Thread.sleep(2000)
     c.ttl("key") shouldEqual -2
     c.get[Int]("key") shouldEqual None
   }
@@ -71,6 +71,7 @@ class StringCommandsSpec extends FlatSpec with Matchers with TestClient {
     c.getrange[String]("key", 0, 4) shouldEqual Some("This ")
     c.getrange[String]("key", 0, -1) shouldEqual Some("This is test string")
     c.getrange[String]("key", -4, -1) shouldEqual Some("ring")
+    c.getrange[String]("key", 5, 9) shouldEqual Some("is te")
   }
 
   "A getset method" should "return Option[T]" in {

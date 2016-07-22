@@ -61,4 +61,5 @@ class PubSubCommandsSpec extends FlatSpec with Matchers with TestClient {
     publisher.publish[String]("test", "Hello") shouldEqual 0
     publisher1.publish[String]("test1", "Hallo") shouldEqual 0
   }
+
 }

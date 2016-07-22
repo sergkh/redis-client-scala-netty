@@ -1,8 +1,9 @@
-package com.fotolog.redis
+package com.fotolog.redis.commands
 
 /**
   * Created by faiaz on 12.07.16.
   */
+import com.fotolog.redis.TestClient
 import org.scalatest.{FlatSpec, Matchers}
 
 class HashCommandsSpec extends FlatSpec with Matchers with TestClient {

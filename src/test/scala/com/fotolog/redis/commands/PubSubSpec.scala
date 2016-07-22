@@ -1,5 +1,6 @@
-package com.fotolog.redis
+package com.fotolog.redis.commands
 
+import com.fotolog.redis.{RedisClient, TestClient}
 import org.scalatest.{FlatSpec, Matchers}
 
 /**

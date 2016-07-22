@@ -50,7 +50,9 @@ class StringCommandsSpec extends FlatSpec with Matchers with TestClient {
     c.setXx("key", 15, 2) shouldBe true
     c.get[Int]("key") shouldEqual Some(15)
     c.ttl("key") shouldEqual 2
+
       Thread.sleep(2000)
+
     c.ttl("key") shouldEqual -2
     c.get[Int]("key") shouldEqual None
   }

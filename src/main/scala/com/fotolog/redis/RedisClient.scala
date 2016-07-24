@@ -18,7 +18,7 @@ object RedisClient {
   }
 
   @throws(classOf[AuthenticationException])
-  def apply(host: String = "localhost",
+  def apply(host: String = "",
             port: Int = 6379,
             password: Option[String] = None,
             timeout: Duration = DEFAULT_TIMEOUT) = {

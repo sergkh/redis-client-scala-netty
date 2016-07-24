@@ -18,6 +18,6 @@ trait TestClient extends BeforeAndAfterEach with BeforeAndAfterAll { this: Suite
     client.shutdown()
   }
 
-  def createClient() = RedisClient(sys.env.getOrElse("TEST_DB_HOST", "localhost"), password = sys.env.get("TEST_DB_PASS"))
+  def createClient() = RedisClient(sys.env.getOrElse("fayaz-redis", "localhost"), password = sys.env.get("FAD14012002"))
 
 }

@@ -1,6 +1,5 @@
 language: scala
 scala:
-- 2.11.5
 - 2.11.8
 script:
 - sbt clean coverage test package
@@ -10,7 +9,7 @@ after_success:
   sbt publish
 env:
   global:
-  - secure: D5e1W2+2vqny4JpF2wP2t1NYi6CrhtHStao8FKrOpHWBu8GwcRuIb5YcXw0Fp7l+IDHLlME/NOWNdYr/OgMjV5OWd4D8HSvmRb1oUZZayolIgjatY0tm0Ysg3v8i0fDc8jxDesrA5MpaIlPmqJte7uUoGv+TtGCX3mwx6w7LPOo=
-  - secure: aY634KqigUiwZhH6NpkOmSvoyC35A/Fe6XjDpgWE32CwixgNDNt0n/dSI7amP0jrhzivZSeNUBU2LyuNHmpYRrSzFWtMm5+cSG7Bda1minfmvyVU66hEcUD6TWfXJH9kbbYHuOdWfsNchqQxWGVdudWglyOdyQdkUdQ/+Rptzw0=
-  - secure: Tgefaz4mFgYzjfnr0f5zaC5XLy+hPoaKpUkJw93fHrLZtCowSZy6CDS6D0BWsoTBJ/vnFGDuiHGs7xihzWJgt7qcsEYqTbLoBJhErF4sPOlIql+W/6MAEKRo+9LFaHZrbmYbxvMXNLg7kitFn1yz/oxfPRrIBzOfLwnhUNXM6D8=
-  - secure: bf8cW8LzslqC/qGOGn0BpshPOjEKI5+TwHx9ErZV4jiGXH8CNMll+gbO7KxPUoVIDLorjCCCvsC+EobjX/2mW22PCDwU+fDsy7PUdpYMZ02M++6jcejKHcg4cijHuqD8ArtxZe1SC7Gm/YDw2Q1zXmuwh4/x3BzCIIgMvFsI2T8=
+  - secure: JYABp0YE6s4Qk7r0aTb/rqgK41kI7btmuoKoeqaNmEqjbAkIIoFxTKfh5/3fiVjgRI1OTNu6CjmqxNpcjkeu+VbpcvKmHMzMpKwdolwG7NEyzSX7Eo2EgIuGrI/13YPQ5hsJw7iOiOw7i54cNv9iUYfII7SZ23rUPWzWujalX5M=
+  - secure: kEQG2XfYJKERaF9z1KdbC5Ai3toTimTIN46FPccxzGAtWa1afr4zrvGmuiEdjffTUmtC0Uja/nkYrIKXpQ8W/ATfCRZW2OxApYB1IDGOj19HDGnOmzXj6KS0btRajC79kL56h97Web3Pinq+v8qr2pWtC75HXuz0WqywZNpQiEQ=
+  - secure: Umb9F1KwDu2ftWaovYY7ptXzO0e0ZXQsVt1mZaBBrhLieyfyptRfPaisyadGh6KzelhRQqKY4nTZJtXqGJ6nuDHs9zUYemTBWsxL40MY1lI4fFWVHmEG+Y9JhKQp1YMmWUnA+0k723wuwIFtx7JpFCmZCxVN5eIAruYVYt26ksY=
+  - secure: SVSNUBNAKAiQywp+k40ki+EDcgrl/bh/7FdDFzDEdmgO+0VFm1mBHEgJjtNOYLfvIrdgSBkb2xEcz5Vb2sgQD2aF3vI3+ZyR67qM6PUK7pak2v+TC+yKzGjtYXe9Z8iuA4yWAQC94rzCaFwCutKhL5DuKr7Eju0l/BwOBKffo8E=

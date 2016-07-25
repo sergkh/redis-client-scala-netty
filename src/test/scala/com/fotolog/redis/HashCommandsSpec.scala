@@ -9,30 +9,25 @@ class HashCommandsSpec extends FlatSpec with Matchers with TestClient {
   val c = createClient
   c.flushall
 
-  "A hset" should "return correct result " in {
+  "A hset" should "allow to put and get sets" in {
     c.hset("key0", "f0", "value0") shouldBe true
     c.hset("key0", "f0", "value1") shouldBe false
-  }
-
-  "A hget" should "return String result" in {
     c.hget[String]("key0", "f0") shouldEqual Some("value1")
     c.hget[String]("key0", "f1") shouldEqual None
   }
 
-  "A hdel" should "return Boolean result" in {
+  "A hdel" should "correctly delete results" in {
+    c.hset("key0", "f0", "value0") shouldBe true
     c.hdel("key0", "f0") shouldBe true
     c.hdel("key0", "f0") shouldBe false
   }
 
-  "A hmset" should "return Boolean result" in {
+  "A hmset" should "allow to set and retrieve multiple values" in {
     c.hmset("key1", ("f0", "Hello"), ("f1", "World")) shouldBe true
-  }
-
-  "A hmget" should "return String result" in {
     c.hmget[String]("key1", "f0", "f1") shouldEqual Map[String, String]("f0" -> "Hello", "f1" -> "World")
   }
 
-  "A hincr" should "return Int result" in {
+  "A hincr" should "correctly increment ints" in {
     c.hset("key1", "f2", 25)
     c.hincr("key1", "f2", 5) shouldEqual 30
     c.hincr("key1", "f2", -6) shouldEqual 24
@@ -40,32 +35,42 @@ class HashCommandsSpec extends FlatSpec with Matchers with TestClient {
   }
 
   "A hexists" should "return Boolean result" in {
-    c.hexists("key1", "f0") shouldBe true
-    c.hexists("key1", "f4") shouldBe false
+    c.hset("key", "f0", "xx") shouldBe true
+    c.hexists("key", "f0") shouldBe true
+    c.hexists("key", "f4") shouldBe false
   }
 
-  "A hlen" should "return Int result" in {
-    c.hlen("key1") shouldEqual 3
+  "A hlen" should "return length of a hash set" in {
+    c.hmset("key1", ("f0", "Hello"), ("f1", "World")) shouldBe true
+    c.hlen("key1") shouldEqual 2
   }
 
-  "A keys" should "return Seq[String] result" in {
-    c.hkeys("key1") shouldEqual Seq[String]("f0", "f1", "f2")
+  "A keys" should "return keys sequence" in {
+    c.hmset("key1", ("f1", "Hello"), ("f2", "World"), ("f3", "World")) shouldBe true
+    c.hkeys("key1") shouldEqual Seq[String]("f1", "f2", "f3")
   }
 
-  "A hvals" should "return Seq[String] result" in {
-    c.hmset("key2", ("f0", 13), ("f1", 15))
-    c.hvals[String]("key1") shouldEqual Seq[String]("Hello", "World", "25")
+  "A hvals" should "return values sequence" in {
+    c.hmset("key2", ("f0", 13), ("f1", 15)) shouldBe true
+    c.hmset("key1", ("f1", "Hello"), ("f2", "World"), ("f3", "!")) shouldBe true
+
+    c.hvals[String]("key1") shouldEqual Seq[String]("Hello", "World", "!")
     c.hvals[Int]("key2") shouldEqual Seq[Int](13, 15)
   }
 
-  "A hgetAll" should "return Map[String, T] result" in {
-    c.hgetall[String]("key1") shouldEqual Map[String, String](("f0", "Hello"), ("f1", "World"), ("f2", "25"))
+  "A hgetAll" should "return all stored values" in {
+    c.hmset("key1", ("f1", "Hello"), ("f2", "World"), ("f3", "!")) shouldBe true
+    c.hmset("key2", ("f0", 13), ("f1", 15)) shouldBe true
+
+    c.hgetall[String]("key1") shouldEqual Map[String, String](("f1", "Hello"), ("f2", "World"), ("f3", "!"))
     c.hgetall[Int]("key2") shouldEqual Map[String, Int](("f0", 13), ("f1", 15))
   }
 
-  "A hstrlen" should "return Int result" in {
-    c.hstrlen("key1", "f0") shouldEqual 5
-    c.hstrlen("key2", "f0") shouldEqual 2
+  // TODO: uncomment when will be able to run tests against Redis 3.2
+  "A hstrlen" should "return length of a value of hash field" ignore {
+    c.hmset("key1", ("f1", "Hi"), ("f2", "World")) shouldBe true
+    c.hstrlen("key1", "f1") shouldEqual 2
+    c.hstrlen("key1", "f2") shouldEqual 5
   }
 
   "A hsetnx" should "return Boolean result" in {
@@ -75,9 +80,12 @@ class HashCommandsSpec extends FlatSpec with Matchers with TestClient {
     c.hget[String]("key3", "f3") shouldEqual Some("field3")
   }
 
-  "A hincrbyfloat" should "return Double result" in {
+  "A hincrbyfloat" should "correctly increment and decrement hash value" in {
+    c.hmset("key1", ("f2", 25)) shouldBe true
     c.hincrbyfloat[Double]("key1", "f2", 25.0) shouldEqual 50.0
     c.hincrbyfloat[Double]("key1", "f2", -24.0) shouldEqual 26.0
     c.hincrbyfloat[Double]("key1", "f2") shouldEqual 27.0
+
+    c.hincrbyfloat[Double]("key1", "f1", 30.0) shouldEqual 30.0
   }
 }

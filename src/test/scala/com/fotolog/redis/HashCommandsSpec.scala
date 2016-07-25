@@ -11,7 +11,7 @@ class HashCommandsSpec extends FlatSpec with Matchers with TestClient {
 
   "A hset" should "allow to put and get sets" in {
     c.hset("key0", "f0", "value0") shouldBe true
-    c.hset("key0", "f0", "value1") shouldBe false
+    c.hset("key0", "f0", "value1") shouldBe true
     c.hget[String]("key0", "f0") shouldEqual Some("value1")
     c.hget[String]("key0", "f1") shouldEqual None
   }

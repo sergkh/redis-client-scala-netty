@@ -9,19 +9,9 @@ class PubSubCommandsSpec extends FlatSpec with Matchers with TestClient {
 
   val publisher, publisher1, subscriber = createClient()
 
-  override def beforeEach() {
-    super.beforeEach()
-    publisher.flushall
-    publisher1.flushall
-    subscriber.flushall
-  }
-
-  override def afterAll() = {
-    client.shutdown()
-    publisher.shutdown()
-    publisher1.shutdown()
-    subscriber.shutdown()
-  }
+  publisher.flushall
+  publisher1.flushall
+  subscriber.flushall
 
   "A publish" should "return Int result" in {
     publisher.publish[String]("test" , "Hello") shouldEqual 0
@@ -51,6 +41,5 @@ class PubSubCommandsSpec extends FlatSpec with Matchers with TestClient {
     channelRes shouldEqual "test1"
     msgRes shouldEqual "1pub msg"
   }
-
 
 }

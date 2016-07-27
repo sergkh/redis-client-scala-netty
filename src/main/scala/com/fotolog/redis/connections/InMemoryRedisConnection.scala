@@ -3,7 +3,7 @@ package com.fotolog.redis.connections
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors}
 
-import com.fotolog.redis.{RedisException, KeyType}
+import com.fotolog.redis.{KeyType, RedisException}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
@@ -38,8 +38,8 @@ object InMemoryRedisConnection {
  * Fake redis connection that can be used for testing purposes.
  */
 class InMemoryRedisConnection(dbName: String) extends RedisConnection {
-  import com.fotolog.redis.connections.InMemoryRedisConnection._
   import com.fotolog.redis.connections.ErrMessages._
+  import com.fotolog.redis.connections.InMemoryRedisConnection._
 
   fakeServers.putIfAbsent(dbName, FakeServer())
   val server = fakeServers.get(dbName)
@@ -133,6 +133,31 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
           case bulks: Seq[BulkDataResult] => MultiBulkDataResult(bulks)
         }
       } getOrElse bulkNull
+
+
+    case hset: Hset =>
+      optVal(hset.key) match {
+        case Some(data) =>
+          println(data)
+          map.put(hset.key, Data.hash(data.asMap + (hset.field -> hset.value)))
+          0
+        case None =>
+          map.put(hset.key, Data.hash(Map(hset.field -> hset.value)))
+          1
+      }
+
+    case Hdel(key, field) =>
+      optVal(key) match {
+        case Some(data) =>
+          val mapData = data.asMap
+          mapData.get(key) match {
+            case Some(_) =>
+              map.put(key, Data.hash(mapData - key))
+              1
+            case None => 0
+          }
+        case None => 0
+      }
 
     case Hget(k, fld) =>
       optVal(k) flatMap { _.asMap.get(fld).map( v => bytes2res(v) ) } getOrElse bulkNull

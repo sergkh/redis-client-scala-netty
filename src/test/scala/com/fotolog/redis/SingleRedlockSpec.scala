@@ -6,7 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class SingleRedlockSpec extends FlatSpec with Matchers with TestClient {
 
   val c = createClient
-  val l = Redlock(c)
+  val l = Redlock(client)
 /* TODO:
   @Before def setUp() { c.flushall }
 

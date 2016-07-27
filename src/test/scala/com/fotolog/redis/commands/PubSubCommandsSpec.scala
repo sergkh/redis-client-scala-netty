@@ -7,20 +7,18 @@ import org.scalatest.{FlatSpec, Matchers}
   * Created by faiaz on 17.07.16.
   */
 class PubSubCommandsSpec extends FlatSpec with Matchers with TestClient {
-
-  val publisher, publisher1 = createClient
-  val subscriber = createClient
+  val publisher, publisher1, subscriber = createClient
   publisher.flushall
   publisher1.flushall
   subscriber.flushall
 
-  "A publish" should "return Int result" in {
+  "A publish" should "correctly publish message in channel" in {
     publisher.publish[String]("test" , "Hello") shouldEqual 0
     subscriber.subscribe[String]("test"){(channel, msg) => None }
     publisher.publish[String]("test" , "Hi subscriber") shouldEqual 1
   }
 
-  "A subscribe/unsubscribe" should "return String result" in {
+  "A subscribe/unsubscribe" should "sub/unsub on channel" in {
     var channelRes = "not used"
     var msgRes = "not used"
 

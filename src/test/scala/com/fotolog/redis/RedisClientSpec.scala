@@ -6,8 +6,8 @@ class RedisClientSpec extends FlatSpec with Matchers with TestClient {
 
   import org.scalatest.{FlatSpec, Matchers}
 
-  val c = client
-/*
+  /*val client = client
+
   @Before def setUp() { c.flushall }
   @After def tearDown() { c.flushall }
 

@@ -1,6 +1,6 @@
 package com.fotolog.redis.commands
 
-import com.fotolog.redis.{RedisClient, TestClient}
+import com.fotolog.redis.TestClient
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -9,8 +9,8 @@ import org.scalatest.{FlatSpec, Matchers}
  * @author Sergey Khruschak on 4/9/15.
  */
 class PubSubSpec extends FlatSpec with Matchers with TestClient {
-  var c: RedisClient = _
-/*
+  /*var client: RedisClient = _
+
   @Before def setUp() {
     c = createClient
     c.flushall

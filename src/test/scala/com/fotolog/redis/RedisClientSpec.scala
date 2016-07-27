@@ -6,9 +6,9 @@ class RedisClientSpec extends FlatSpec with Matchers with TestClient {
 
   import org.scalatest.{FlatSpec, Matchers}
 
-  /*val client = client
+  val c = client
 
-  @Before def setUp() { c.flushall }
+  /*@Before def setUp() { c.flushall }
   @After def tearDown() { c.flushall }
 
   @Test def testPingGetSetExistsType() {

@@ -9,7 +9,7 @@ import org.scalatest.{FlatSpec, Matchers}
  * @author Sergey Khruschak on 4/9/15.
  */
 class PubSubSpec extends FlatSpec with Matchers with TestClient {
-  /*var client: RedisClient = _
+  /*var c: RedisClient = _
 
   @Before def setUp() {
     c = createClient

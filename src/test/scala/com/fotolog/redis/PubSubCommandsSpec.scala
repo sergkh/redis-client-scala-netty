@@ -7,12 +7,21 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class PubSubCommandsSpec extends FlatSpec with Matchers with TestClient {
 
-  val publisher, publisher1 = createClient
-  val subscriber = createClient
+  val publisher, publisher1, subscriber = createClient()
 
-  publisher.flushall
-  publisher1.flushall
-  subscriber.flushall
+  override def beforeEach() {
+    super.beforeEach()
+    publisher.flushall
+    publisher1.flushall
+    subscriber.flushall
+  }
+
+  override def afterAll() = {
+    client.shutdown()
+    publisher.shutdown()
+    publisher1.shutdown()
+    subscriber.shutdown()
+  }
 
   "A publish" should "return Int result" in {
     publisher.publish[String]("test" , "Hello") shouldEqual 0

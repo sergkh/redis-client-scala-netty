@@ -62,4 +62,53 @@ class SetCommandsSpec extends FlatSpec with Matchers with TestClient {
     client.sadd("key", 4) shouldEqual 1
     client.sismember("key", 4) shouldBe true
   }
+
+  "A sinter" should "return same element between sets" in {
+    client.sadd("key", 4, 5, 6, 7) shouldEqual 4
+    client.sadd("key1", 3, 2, 1, 4) shouldEqual 4
+    client.sadd("key2", 4, 5, 8, 9) shouldEqual 4
+    client.sinter[Int]("key", "key1") shouldEqual Set(4)
+    client.sinter[Int]("key", "key2") shouldEqual Set(4, 5)
+    client.sinter[Int]("key", "key1", "key2") shouldEqual Set(4)
+  }
+
+  "A sinterstore" should "return set that contain same element from another sets" in {
+    client.sadd("key1", 3, 2, 1, 4) shouldEqual 4
+    client.sadd("key2", 4, 2, 8, 9) shouldEqual 4
+    client.sinterstore("key", "key1", "key2") shouldEqual 2
+    client.smembers[Int]("key") shouldEqual Set(4, 2)
+  }
+
+  "A sunion" should "return resulting set from union of given sets" in {
+    client.sadd("key", 4, 5, 6, 7) shouldEqual 4
+    client.sadd("key1", 3, 2, 1, 4) shouldEqual 4
+    client.sadd("key2", 4, 5, 8, 9) shouldEqual 4
+    client.sunion[Int]("key", "key1", "key2") shouldEqual Set(1, 2, 3, 4, 5, 6, 7, 8, 9)
+  }
+
+  "A sunionstore" should "the number of elements from union of given sets" in {
+    client.sadd("key1", 3, 2, 1, 4) shouldEqual 4
+    client.sadd("key2", 4, 5, 8, 9) shouldEqual 4
+    client.sunionstore[Int]("key", "key1", "key2") shouldEqual 7
+    client.smembers[Int]("key") shouldEqual Set(1, 2, 3, 4, 5, 8, 9)
+  }
+
+  "A sdiff" should "return resulting set from difference of given sets" in {
+    client.sadd("key", 4, 5, 6, 7) shouldEqual 4
+    client.sadd("key1", 6, 7, 8, 9) shouldEqual 4
+    client.sadd("key2", 10, 5, 8, 9) shouldEqual 4
+    client.sdiff[Int]("key", "key1", "key2") shouldEqual Set(4)
+  }
+
+  "A sdiffstore" should "return difference on sets stored in destination set" in {
+    client.sadd("key1", 6, 7, 8, 9) shouldEqual 4
+    client.sadd("key2", 10, 5, 8, 9) shouldEqual 4
+    client.sdiffstore[Int]("key", "key1", "key2") shouldEqual 2
+    client.smembers[Int]("key") shouldEqual Set(6, 7)
+  }
+
+  "A srandmember" should "return random elem from given set" in {
+    client.sadd("key", 6, 7, 8, 9) shouldEqual 4
+    client.srandmember[Int]("key") should contain oneOf(6, 7, 8, 9)
+  }
 }

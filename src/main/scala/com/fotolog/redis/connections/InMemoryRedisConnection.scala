@@ -33,6 +33,8 @@ object InMemoryRedisConnection {
 
   private[connections] val ok = SingleLineResult("OK")
   private[connections] val bulkNull = BulkDataResult(None)
+  private[connections] val multibulkEmpty = MultiBulkDataResult(Nil)
+
 }
 
 /**
@@ -116,6 +118,15 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       int2res(optVal(key).map(_.asMap.get(field).fold(0)(_ => 1)).getOrElse(0))
 
     case Hlen(key) => int2res(optVal(key).map(_.asMap.size).getOrElse(0))
+
+    case Hkeys(key) =>
+      optVal(key).map(_.asMap.keys).map(_.map(k => BulkDataResult(Some(k.getBytes))))
+        .map(kvs => MultiBulkDataResult(kvs.toSeq)).getOrElse(multibulkEmpty)
+
+    case Hvals(key) =>
+      optVal(key).map(_.asMap.values).map(_.map(k => BulkDataResult(Some(k))))
+        .map(kvs => MultiBulkDataResult(kvs.toSeq)).getOrElse(multibulkEmpty)
+
   }
 
   private[this] def setsCmd: PartialFunction[Cmd, Result] = {

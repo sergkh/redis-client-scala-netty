@@ -3,12 +3,13 @@ package com.fotolog.redis.connections
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors}
 
-import com.fotolog.redis.{RedisException, KeyType}
+import com.fotolog.redis.{KeyType, RedisException}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
 import scala.compat.Platform
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.implicitConversions
 
 object InMemoryRedisConnection {
   private[connections] val fakeServers = new ConcurrentHashMap[String, FakeServer]
@@ -38,8 +39,8 @@ object InMemoryRedisConnection {
  * Fake redis connection that can be used for testing purposes.
  */
 class InMemoryRedisConnection(dbName: String) extends RedisConnection {
-  import com.fotolog.redis.connections.InMemoryRedisConnection._
   import com.fotolog.redis.connections.ErrMessages._
+  import com.fotolog.redis.connections.InMemoryRedisConnection._
 
   fakeServers.putIfAbsent(dbName, FakeServer())
   val server = fakeServers.get(dbName)
@@ -58,69 +59,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
     }(context)
   }
 
-  private[this] def syncSend(cmd: Cmd): Result = cmd match {
-    case set: SetCmd if set.nx =>
-        Option( map.putIfAbsent(set.key, Data(set.v, set.expTime)) ) map(_ => bulkNull) getOrElse ok
-
-    case set: SetCmd if set.xx =>
-      Option( map.replace(set.key, Data(set.v, set.expTime)) ) map (_ => ok) getOrElse bulkNull
-
-    case set: SetCmd =>
-      map.put(set.key, Data(set.v, set.expTime))
-      ok
-
-    case Get(key) =>
-      BulkDataResult(
-        optVal(key) filterNot(_.expired) map (_.asBytes)
-      )
-
-    case Incr(key, delta) =>
-      val newVal = (optVal(key) map { a => bytes2int(a.asBytes, ERR_INVALID_NUMBER) } getOrElse 0) + delta
-      map.put(key, Data.str(int2bytes(newVal)))
-      newVal
-
-    case Keys(pattern) =>
-      MultiBulkDataResult(
-        map.keys()
-           .filter(_.matches(pattern.replace("*", ".*?").replace("?", ".?")))
-           .map(k => BulkDataResult(Some(k.getBytes))).toSeq
-      )
-
-    case Expire(key, seconds) =>
-      int2res(optVal(key) map { d => map.put(key, d.copy(ttl = seconds)); 1 } getOrElse 0)
-
-    case Exists(key) =>
-      if(optVal(key).exists(!_.expired)) 1 else 0
-
-    case Type(key) =>
-      SingleLineResult(
-        optVal(key) map ( _.keyType.name ) getOrElse KeyType.None.name
-      )
-
-    case Persist(key) =>
-      int2res(optVal(key) map { d => map.put(key, d.copy(ttl = -1)); 1 } getOrElse 0)
-
-    case Ttl(key) =>
-      int2res(optVal(key) map (_.secondsLeft) getOrElse -2)
-
-    case d: Del =>
-      d.keys.count(k => Option(map.remove(k)).isDefined)
-
-    case Rename(key, newKey, nx) =>
-      optVal(key) match {
-        case Some(v) =>
-          if(nx && optVal(newKey).exists(!_.expired)) int2res(0)
-          else {
-            map.remove(key)
-            map.put(newKey, v)
-            int2res(1)
-          }
-        case None =>
-          throw new RedisException(ERR_NO_SUCH_KEY)
-      }
-
-    // hash commands
-
+  private[this] def hashCmd: PartialFunction[Cmd, Result] = {
     case hmset: Hmset =>
       map.put(hmset.key, Data.hash(Map(hmset.kvs:_*)))
       ok
@@ -134,11 +73,35 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         }
       } getOrElse bulkNull
 
+
+    case hset: Hset =>
+      optVal(hset.key) match {
+        case Some(data) =>
+          println(data)
+          map.put(hset.key, Data.hash(data.asMap + (hset.field -> hset.value)))
+          0
+        case None =>
+          map.put(hset.key, Data.hash(Map(hset.field -> hset.value)))
+          1
+      }
+
+    case Hdel(key, field) =>
+      optVal(key) match {
+        case Some(data) =>
+          val mapData = data.asMap
+          mapData.get(field) match {
+            case Some(_) =>
+              map.put(key, Data.hash(mapData - field))
+              1
+            case None => 0
+          }
+        case None => 0
+      }
+
     case Hget(k, fld) =>
       optVal(k) flatMap { _.asMap.get(fld).map( v => bytes2res(v) ) } getOrElse bulkNull
 
     case h: Hincrby =>
-
       val updatedMap = optVal(h.key).map { data =>
         val m = data.asMap
         val oldVal = m.get(h.field).map(a => bytes2int(a, ERR_INVALID_HASH_NUMBER)).getOrElse(0) + h.delta
@@ -149,7 +112,22 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
       int2res(bytes2int(updatedMap(h.field), ERR_INVALID_HASH_NUMBER))
 
-    // set commands
+    case Hexists(key, field) =>
+      int2res(optVal(key).map(_.asMap.get(field).fold(0)(_ => 1)).getOrElse(0))
+
+    case Hlen(key) => int2res(optVal(key).map(_.asMap.size).getOrElse(0))
+  }
+
+  private[this] def setsCmd: PartialFunction[Cmd, Result] = {
+    case set: SetCmd if set.nx =>
+      Option( map.putIfAbsent(set.key, Data(set.v, set.expTime)) ) map(_ => bulkNull) getOrElse ok
+
+    case set: SetCmd if set.xx =>
+      Option( map.replace(set.key, Data(set.v, set.expTime)) ) map (_ => ok) getOrElse bulkNull
+
+    case set: SetCmd =>
+      map.put(set.key, Data(set.v, set.expTime))
+      ok
 
     case sadd: Sadd =>
       val args = sadd.values.map(BytesWrapper).toSet
@@ -165,9 +143,10 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
     case Smembers(key) =>
       optVal(key) map (data =>
         MultiBulkDataResult(data.asSet.map(wrapper => bytes2res(wrapper.bytes)).toSeq)
-      ) getOrElse MultiBulkDataResult(Seq())
+        ) getOrElse MultiBulkDataResult(Seq())
+  }
 
-    // Pub/Sub
+  private[this] def pubSubCmd: PartialFunction[Cmd, Result] = {
 
     case s: Subscribe =>
       val subscriptions = s.channels.map { ptrn =>
@@ -209,9 +188,9 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       if(server.countUnique(this) == 0) inSubscribedMode = false
 
       MultiBulkDataResult(unsubsriptions)
+  }
 
-    // scripting
-
+  private[this] def scriptingCmd: PartialFunction[Cmd, Result] = {
     case eval: Eval =>
       import com.fotolog.redis.primitives.Redlock._
 
@@ -229,17 +208,75 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         case _ =>
           throw new RedisException(ERR_UNSUPPORTED_SCRIPT + eval.script)
       }
+  }
+
+  private[this] def keyCmd: PartialFunction[Cmd, Result] = {
+    case Get(key) =>
+      BulkDataResult(
+        optVal(key) filterNot(_.expired) map (_.asBytes)
+      )
+
+    case Incr(key, delta) =>
+      val newVal = (optVal(key) map { a => bytes2int(a.asBytes, ERR_INVALID_NUMBER) } getOrElse 0) + delta
+      map.put(key, Data.str(int2bytes(newVal)))
+      newVal
+
+    case Keys(pattern) =>
+      MultiBulkDataResult(
+        map.keys()
+          .filter(_.matches(pattern.replace("*", ".*?").replace("?", ".?")))
+          .map(k => BulkDataResult(Some(k.getBytes))).toSeq
+      )
+
+    case Expire(key, seconds) =>
+      int2res(optVal(key) map { d => map.put(key, d.copy(ttl = seconds)); 1 } getOrElse 0)
+
+    case Exists(key) =>
+      if(optVal(key).exists(!_.expired)) 1 else 0
+
+    case Type(key) =>
+      SingleLineResult(
+        optVal(key) map ( _.keyType.name ) getOrElse KeyType.None.name
+      )
+
+    case Persist(key) =>
+      int2res(optVal(key) map { d => map.put(key, d.copy(ttl = -1)); 1 } getOrElse 0)
+
+    case Ttl(key) =>
+      int2res(optVal(key) map (_.secondsLeft) getOrElse -2)
+
+    case d: Del =>
+      d.keys.count(k => Option(map.remove(k)).isDefined)
+
+    case Rename(key, newKey, nx) =>
+      optVal(key) match {
+        case Some(v) =>
+          if(nx && optVal(newKey).exists(!_.expired)) int2res(0)
+          else {
+            map.remove(key)
+            map.put(newKey, v)
+            int2res(1)
+          }
+        case None =>
+          throw new RedisException(ERR_NO_SUCH_KEY)
+      }
 
     case f: FlushAll =>
       map.clear()
       ok
+  }
 
+  private[this] def serverCmd: PartialFunction[Cmd, Result] = {
     case p: Ping => SingleLineResult("PONG")
+  }
 
+  private[this] def unsupportedCmd: PartialFunction[Cmd, Result] = {
     case unsupported =>
       throw new RedisException("ERR unsupported command " + unsupported)
-
   }
+
+  private[this] def syncSend: PartialFunction[Cmd, Result] =
+    hashCmd orElse setsCmd orElse pubSubCmd orElse scriptingCmd orElse keyCmd orElse serverCmd orElse unsupportedCmd
 
   private[this] implicit def int2res(v: Int): BulkDataResult = BulkDataResult(Some(v.toString.getBytes))
 
@@ -250,8 +287,8 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       throw new RedisException(msg)
   }
 
-  private[this] def bytes2res(a: Array[Byte]) = BulkDataResult(Some(a))
-  private[this] def str2res(s: String) = BulkDataResult(Some(s.getBytes))
+  private[this] implicit def bytes2res(a: Array[Byte]): BulkDataResult = BulkDataResult(Some(a))
+  private[this] implicit def str2res(s: String): BulkDataResult = BulkDataResult(Some(s.getBytes))
   private[this] def int2bytes(i: Int): Array[Byte] = i.toString.getBytes
   private[this] def optVal(key: String) = Option(map.get(key))
 

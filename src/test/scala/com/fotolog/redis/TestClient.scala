@@ -9,15 +9,8 @@ trait TestClient extends BeforeAndAfterEach with BeforeAndAfterAll { this: Suite
 
   val client: RedisClient = createClient
 
-  override def beforeEach() {
-    super.beforeEach()
-  }
-
-  override def beforeAll() = {
-    client.flushall
-  }
-
-  override def afterEach() = {
+  override def beforeAll() {
+    super.beforeAll()
     client.flushall
   }
 
@@ -27,4 +20,5 @@ trait TestClient extends BeforeAndAfterEach with BeforeAndAfterAll { this: Suite
 
   def createClient = RedisClient(sys.env.getOrElse("TEST_DB_HOST", "localhost"), password = sys.env.get("TEST_DB_PASS"))
 
+  def createInMemoryClient = RedisClient("mem:test")
 }

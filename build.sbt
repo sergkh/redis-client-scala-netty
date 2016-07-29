@@ -22,6 +22,8 @@ bintrayPackage := name.value
 
 bintrayOrganization in bintray := Some("sergkh")
 
+concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
+
 libraryDependencies ++= Seq(
   "io.netty" % "netty" % "3.10.6.Final",
   "org.scalatest" %% "scalatest" % "2.2.6" % "test",

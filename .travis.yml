@@ -1,15 +1,32 @@
 language: scala
 scala:
+- 2.11.5
 - 2.11.8
+env:
+  global:
+  - REDIS_TAG=3.2.0
+  - secure: V+QVQZfSYPjdPfBiKsPta63CaIA33Xl6UhTZrWD+KCQ4AXjEKWdIag54ABAAw7gMt6lfVgq4R5J8WiTcAbFVXY62gN4OxzmdUxyOvcgexUAxraQV7QcKNu4TFsMGoSSUv9OM/+CbAyvFWsPXVEAQ/L9GsdmaXjNd6s6ggMr6gLs=
+  - secure: hQYfRhuuMhvOUiPPsK2xeFpqgv0pzMhw/9EiK1t+MuqyvSAdE159qzKciNprFmGbi6FDgKSu7E7745ukogSrENA2g9tcJR/YP++V/nuxTosH3CCuBDvmALkmYusY6fpYn1c238eB8Uka0X9tU46riU5LhKPaWcdJ0o2p6LW+rTQ=
+before_install:
+- export REDIS_BIN=$HOME/redis/${REDIS_TAG}/bin
+- |
+  if [ ! -x "$REDIS_BIN/redis-server" ]; then
+    # For proper caching we must build all redis versions
+    wget -c https://github.com/antirez/redis/archive/${REDIS_TAG}.tar.gz -O redis-${REDIS_TAG}.tar.gz
+    tar -xvf redis-${REDIS_TAG}.tar.gz
+    make -C redis-${REDIS_TAG} PREFIX=$HOME/redis/${REDIS_TAG} install
+  fi
+before_script:
+- '$REDIS_BIN/redis-server --daemonize yes --pidfile ./redis-server.pid --unixsocket
+  /tmp/aioredis.sock --port 6379 --save ""
+
+'
+- sleep 3
+- export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
+- echo $REDIS_VERSION
 script:
 - sbt clean coverage test package
 after_success:
 - sbt coveralls
 - test "${TRAVIS_PULL_REQUEST}" = 'false' && sh "$TRAVIS_BUILD_DIR/.bintray.sh" &&
   sbt publish
-env:
-  global:
-  - secure: JYABp0YE6s4Qk7r0aTb/rqgK41kI7btmuoKoeqaNmEqjbAkIIoFxTKfh5/3fiVjgRI1OTNu6CjmqxNpcjkeu+VbpcvKmHMzMpKwdolwG7NEyzSX7Eo2EgIuGrI/13YPQ5hsJw7iOiOw7i54cNv9iUYfII7SZ23rUPWzWujalX5M=
-  - secure: kEQG2XfYJKERaF9z1KdbC5Ai3toTimTIN46FPccxzGAtWa1afr4zrvGmuiEdjffTUmtC0Uja/nkYrIKXpQ8W/ATfCRZW2OxApYB1IDGOj19HDGnOmzXj6KS0btRajC79kL56h97Web3Pinq+v8qr2pWtC75HXuz0WqywZNpQiEQ=
-  - secure: Umb9F1KwDu2ftWaovYY7ptXzO0e0ZXQsVt1mZaBBrhLieyfyptRfPaisyadGh6KzelhRQqKY4nTZJtXqGJ6nuDHs9zUYemTBWsxL40MY1lI4fFWVHmEG+Y9JhKQp1YMmWUnA+0k723wuwIFtx7JpFCmZCxVN5eIAruYVYt26ksY=
-  - secure: SVSNUBNAKAiQywp+k40ki+EDcgrl/bh/7FdDFzDEdmgO+0VFm1mBHEgJjtNOYLfvIrdgSBkb2xEcz5Vb2sgQD2aF3vI3+ZyR67qM6PUK7pak2v+TC+yKzGjtYXe9Z8iuA4yWAQC94rzCaFwCutKhL5DuKr7Eju0l/BwOBKffo8E=

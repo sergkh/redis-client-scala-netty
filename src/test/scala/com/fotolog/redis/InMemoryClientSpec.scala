@@ -8,7 +8,7 @@ import org.scalatest.{FlatSpec, Matchers}
  */
 class InMemoryClientSpec extends FlatSpec with Matchers with TestClient {
 
-  override lazy val client = createInMemoryClient()
+  override val client = createInMemoryClient
 
   "A In Memory Client" should "respond to ping" in {
     client.ping() shouldBe true

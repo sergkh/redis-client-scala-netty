@@ -1,134 +1,143 @@
 package com.fotolog.redis
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
  * Will be merged with RedisClientTest when in-memory client will support
  * full set of operations.
  */
-class InMemoryClientSpec extends FlatSpec with Matchers {
-  val c = RedisClient("mem:test")
+class InMemoryClientSpec extends FlatSpec with Matchers with TestClient {
+
+  override val client = createInMemoryClient
 
   "A In Memory Client" should "respond to ping" in {
-    c.ping() shouldBe true
+    client.ping() shouldBe true
   }
 
   it should "support get, set, exists and type operations" in {
-    c.exists("foo") shouldBe false
-    c.set("foo", "bar", 2592000) shouldBe true
+    client.exists("key_foo") shouldBe false
+    client.set("key_foo", "bar", 2592000) shouldBe true
 
-    c.exists("foo") shouldBe true
+    client.exists("key_foo") shouldBe true
 
-    c.get[String]("foo").get shouldEqual "bar"
-    c.keytype("foo") shouldEqual KeyType.String
+    client.get[String]("key_foo").get shouldEqual "bar"
+    client.keytype("key_foo") shouldEqual KeyType.String
 
     // keys test
-    c.set("boo", "baz") shouldBe true
-    c.set("baz", "bar") shouldBe true
-    c.set("buzzword", "bar") shouldBe true
+    client.set("key_boo", "baz") shouldBe true
+    client.set("key_baz", "bar") shouldBe true
+    client.set("key_buzzword", "bar") shouldBe true
 
-    c.keys("?oo") shouldEqual Set("foo", "boo")
-    c.keys("*") shouldEqual Set("foo", "boo", "baz", "buzzword")
-    c.keys("???") shouldEqual Set("foo", "boo", "baz")
-    c.keys("*b*") shouldEqual Set("baz", "buzzword", "boo")
+    client.keys("key_?oo") shouldEqual Set("key_foo", "key_boo")
+    client.keys("*") shouldEqual Set("key_foo", "key_boo", "key_baz", "key_buzzword")
+    client.keys("???????") shouldEqual Set("key_foo", "key_boo", "key_baz")
+    client.keys("*b*") shouldEqual Set("key_baz", "key_buzzword", "key_boo")
 
-    c.del("foo") shouldEqual 1
-    c.exists("foo") shouldBe false
+    client.del("key_foo") shouldEqual 1
+    client.exists("key_foo") shouldBe false
 
-    c.del("foo") shouldEqual 0
+    client.del("key_foo") shouldEqual 0
 
     // rename
-    c.rename("baz", "rbaz") shouldBe true
-    c.exists("baz") shouldBe false
-    c.get[String]("rbaz") shouldEqual Some("bar")
+    client.rename("key_baz", "key_rbaz") shouldBe true
+    client.exists("key_baz") shouldBe false
+    client.get[String]("key_rbaz") shouldEqual Some("bar")
 
     // rename nx
-    c.rename("rbaz", "buzzword", true) shouldBe false
+    client.rename("key_rbaz", "key_buzzword", true) shouldBe false
   }
 
   it should "support inc/dec operations" in {
-    c.set("foo", 1) shouldBe true
-    c.incr("foo", 10) shouldEqual 11
-    c.incr("foo", -11) shouldEqual 0
-    c.incr("unexistent", -5) shouldEqual -5
+    client.set("inc_foo", 1) shouldBe true
+    client.incr("inc_foo", 10) shouldEqual 11
+    client.incr("inc_foo", -11) shouldEqual 0
+    client.incr("unexistent", -5) shouldEqual -5
   }
 
-  it should "fail to rename inexistent key" in {
+  it should "fail to rename nonexistent key" in {
     intercept[RedisException] {
-      c.rename("non-existent", "newkey")
+      client.rename("non-existent", "newkey")
     }
   }
 
-  it should "fail to increment inexistent key" in {
-    c.set("baz", "bar") shouldBe true
+  it should "fail to increment nonexistent key" in {
+    client.set("baz", "bar") shouldBe true
 
     intercept[RedisException] {
-      c.incr("baz")
+      client.incr("baz")
     }
 
+  }
+
+  it should "support hash commands" in {
+
+    assert(client.hset[String]("hash_foo", "one", "another"), "Problem with creating hash")
+    assert(client.hmset("hash_bar", "baz1" -> "1", "baz2" -> "2"), "Problem with creating 2 values hash")
+
+    client.hget[String]("hash_foo", "one") shouldBe Some("another")
+    client.hget[String]("hash_bar", "baz1") shouldBe Some("1")
+
+    assert(Map("baz1" -> "1", "baz2" -> "2") === client.hmget[String]("hash_bar", "baz1", "baz2"), "Resulting map with 2 values")
+    assert(Map("baz2" -> "2") === client.hmget[String]("hash_bar", "baz2"), "Resulting map with 1 values")
+
+    assert(7 === client.hincr("hash_bar", "baz2", 5), "Was 2 plus 5 has to give 7")
+    assert(-3 === client.hincr("hash_bar", "baz1", -4), "Was 1 minus 4 has to give -3")
+
+    assert(Map("baz1" -> "-3", "baz2" -> "7") === client.hmget[String]("hash_bar", "baz1", "baz2"), "Changed map has to have values 7, -3")
+
+    assert(client.hmset[String]("hash_zoo-key", "foo" -> "{foo}", "baz" -> "{baz}", "vaz" -> "{vaz}", "bzr" -> "{bzr}", "wry" -> "{wry}"))
+
+    val map = client.hmget[String]("hash_zoo-key", "foo", "bzr", "vaz", "wry")
+
+    for(k <- map.keys) {
+      assert("{" + k + "}" == map(k).toString, "Values don't correspond to keys in result")
+    }
+
+    assert(Map("vaz" -> "{vaz}", "bzr" -> "{bzr}", "wry" -> "{wry}")=== client.hmget[String]("hash_zoo-key", "boo", "bzr", "vaz", "wry"))
+    assert(5 === client.hlen("hash_zoo-key"), "Length of map elements should be 5")
+    assert(client.hdel("hash_zoo-key", "bzr"), "Problem with deleting")
+    client.hget[String]("hash_zoo-key", "bzr") shouldBe None
+
+    assert(client.hexists("hash_zoo-key", "vaz"), "Key 'vaz' should exist in map `zoo-key`")
+    assert(4 === client.hlen("hash_zoo-key"), "Length of map elements should be 2")
+    client.hkeys("hash_zoo-key") shouldBe Seq("wry", "vaz", "baz", "foo")
+    client.hkeys("hash_nonexistent-key") shouldBe Nil
   }
 
   /*
   @Test def testKeyTtl() {
-    assertTrue(c.set("foo", "bar", 5))
-    assertTrue(c.ttl("foo") <= 5)
+    assertTrue(client.set("foo", "bar", 5))
+    assertTrue(client.ttl("foo") <= 5)
 
-    assertTrue(c.set("baz", "foo"))
+    assertTrue(client.set("baz", "foo"))
 
-    assertEquals("Ttl if not set should equal -1", -1, c.ttl("baz"))
+    assertEquals("Ttl if not set should equal -1", -1, client.ttl("baz"))
 
-    assertEquals("Ttl of nonexistent entity has to be -2", -2, c.ttl("bar"))
+    assertEquals("Ttl of nonexistent entity has to be -2", -2, client.ttl("bar"))
 
-    assertTrue(c.set("bee", "test", 100))
-    assertTrue(c.persist("bee"))
-    assertEquals("Ttl of persisted should equal -1", -1, c.ttl("bee"))
-  }
-
-  @Test def testHash() {
-    assertTrue("Problem with creating hash", c.hmset("foo", "one" -> "another"))
-    assertTrue("Problem with creating 2 values hash", c.hmset("bar", "baz1" -> "1", "baz2" -> "2"))
-
-    assertEquals("Hash value is wrong", Some("another"), c.hget[String]("foo", "one"))
-    assertEquals("Hash value is wrong", Some("1"), c.hget[String]("bar", "baz1"))
-    assertEquals("Resulting map with 2 values", Map("baz1" -> "1", "baz2" -> "2"), c.hmget[String]("bar", "baz1", "baz2"))
-    assertEquals("Resulting map with 1 values", Map("baz2" -> "2"), c.hmget[String]("bar", "baz2"))
-
-    assertEquals("Was 2 plus 5 has to give 7", 7, c.hincr("bar", "baz2", 5))
-    assertEquals("Was 1 minus 4 has to give -3", -3, c.hincr("bar", "baz1", -4))
-
-    assertEquals("Changed map has to have values 7, -3", Map("baz1" -> "-3", "baz2" -> "7"), c.hmget[String]("bar", "baz1", "baz2"))
-
-    assertTrue(c.hmset[String]("zoo-key", "foo" -> "{foo}", "baz" -> "{baz}", "vaz" -> "{vaz}", "bzr" -> "{bzr}", "wry" -> "{wry}"))
-
-    val map = c.hmget[String]("zoo-key", "foo", "bzr", "vaz", "wry")
-
-    for(k <- map.keys) {
-      assertEquals("Values don't correspond to keys in result", "{" + k + "}", map(k))
-    }
-
-    assertEquals(Map("vaz" -> "{vaz}", "bzr" -> "{bzr}", "wry" -> "{wry}"), c.hmget[String]("zoo-key", "boo", "bzr", "vaz", "wry"))
+    assertTrue(client.set("bee", "test", 100))
+    assertTrue(client.persist("bee"))
+    assertEquals("Ttl of persisted should equal -1", -1, client.ttl("bee"))
   }
 
   @Test def testSet() {
-    assertEquals("Should add 2 elements and create set", 2, c.sadd("sport", "tennis", "hockey"))
-    assertEquals("Should add only one element", 1, c.sadd("sport", "football"))
-    assertEquals("Should not add any elements", 0, c.sadd("sport", "hockey"))
+    assertEquals("Should add 2 elements and create set", 2, client.sadd("sport", "tennis", "hockey"))
+    assertEquals("Should add only one element", 1, client.sadd("sport", "football"))
+    assertEquals("Should not add any elements", 0, client.sadd("sport", "hockey"))
 
-    assertTrue("Elements should be in set", c.sismember("sport", "hockey"))
-    assertFalse("Elements should not be in set", c.sismember("sport", "ski"))
-    assertFalse("No set – no elements", c.sismember("drink", "ski"))
+    assertTrue("Elements should be in set", client.sismember("sport", "hockey"))
+    assertFalse("Elements should not be in set", client.sismember("sport", "ski"))
+    assertFalse("No set – no elements", client.sismember("drink", "ski"))
 
-    assertEquals("Resulting set has to contain all elements", Set("tennis", "hockey", "football"), c.smembers[String]("sport"))
+    assertEquals("Resulting set has to contain all elements", Set("tennis", "hockey", "football"), client.smembers[String]("sport"))
   }
 
   @Test def testRedlockScript() {
     import com.fotolog.redis.primitives.Redlock._
 
-    assertTrue(c.set("redlock:key", "redlock:value"))
-    assertEquals("Should not unlock redis server with nonexistent value", Set(0), c.eval[Int](UNLOCK_SCRIPT, "redlock:key" -> "non:value"))
-    assertEquals("Should unlock redis server", Set(1), c.eval[Int](UNLOCK_SCRIPT, "redlock:key" -> "redlock:value"))
+    assertTrue(client.set("redlock:key", "redlock:value"))
+    assertEquals("Should not unlock redis server with nonexistent value", Set(0), client.eval[Int](UNLOCK_SCRIPT, "redlock:key" -> "non:value"))
+    assertEquals("Should unlock redis server", Set(1), client.eval[Int](UNLOCK_SCRIPT, "redlock:key" -> "redlock:value"))
 
   }
 
@@ -143,7 +152,7 @@ class InMemoryClientSpec extends FlatSpec with Matchers {
 
     assertEquals(Seq(1, 2, 2, 3), subscribtionRes)
 
-    c.publish("fee", "message")
+    client.publish("fee", "message")
 
     latch.await(5, TimeUnit.SECONDS)
 

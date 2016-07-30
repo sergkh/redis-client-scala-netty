@@ -28,5 +28,4 @@ script:
 - sbt clean coverage test package
 after_success:
 - sbt coveralls
-- test "${TRAVIS_PULL_REQUEST}" = 'false' && sh "$TRAVIS_BUILD_DIR/.bintray.sh" &&
-  sbt publish
+- test "${TRAVIS_PULL_REQUEST}" = 'false' && sh "$TRAVIS_BUILD_DIR/.bintray.sh" && sbt publish bintrayRelease

@@ -8,6 +8,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 trait TestClient extends BeforeAndAfterEach with BeforeAndAfterAll { this: Suite =>
 
   val client: RedisClient = createClient
+  val memClient: RedisClient = createInMemoryClient
 
   override def beforeAll() {
     super.beforeAll()
@@ -16,6 +17,10 @@ trait TestClient extends BeforeAndAfterEach with BeforeAndAfterAll { this: Suite
 
   override def afterAll() = {
     client.shutdown()
+  }
+
+  override def afterEach() = {
+    memClient.flushall
   }
 
   def createClient = RedisClient(sys.env.getOrElse("TEST_DB_HOST", "localhost"), password = sys.env.get("TEST_DB_PASS"))

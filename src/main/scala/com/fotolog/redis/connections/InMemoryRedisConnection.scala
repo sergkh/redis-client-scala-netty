@@ -127,6 +127,27 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       optVal(key).map(_.asMap.values).map(_.map(k => BulkDataResult(Some(k))))
         .map(kvs => MultiBulkDataResult(kvs.toSeq)).getOrElse(multibulkEmpty)
 
+    case Hstrlen(key, field) =>
+      optVal(key) match {
+        case Some(data) =>
+        val mapData = data.asMap
+          mapData.get(field) match {
+            case Some(value) => int2res(value.length)
+            case None => 0
+          }
+        case None => 0
+      }
+
+    case h: Hincrbyfloat =>
+      val updatedMap = optVal(h.key).map { data =>
+        val m = data.asMap
+        val oldVal = m.get(h.field).map(a => bytes2double(a, ERR_INVALID_HASH_NUMBER)).getOrElse(0.0) + h.delta
+        m.updated(h.field, double2bytes(oldVal))
+      } getOrElse Map(h.field -> double2bytes(h.delta))
+
+      map.put(h.key, Data.hash(updatedMap))
+
+      double2res(bytes2double(updatedMap(h.field), ERR_INVALID_HASH_NUMBER))
   }
 
   private[this] def setsCmd: PartialFunction[Cmd, Result] = {
@@ -290,6 +311,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
     hashCmd orElse setsCmd orElse pubSubCmd orElse scriptingCmd orElse keyCmd orElse serverCmd orElse unsupportedCmd
 
   private[this] implicit def int2res(v: Int): BulkDataResult = BulkDataResult(Some(v.toString.getBytes))
+  private[this] implicit def double2res(v: Double): BulkDataResult = BulkDataResult(Some(v.toString.getBytes))
 
   private[this] def bytes2int(b: Array[Byte], msg: String) = try {
     new String(b).toInt
@@ -298,9 +320,17 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       throw new RedisException(msg)
   }
 
+  private[this] def bytes2double(b: Array[Byte], msg: String) = try {
+    new String(b).toDouble
+  } catch {
+    case p: IllegalArgumentException =>
+      throw new RedisException(msg)
+  }
+
   private[this] implicit def bytes2res(a: Array[Byte]): BulkDataResult = BulkDataResult(Some(a))
   private[this] implicit def str2res(s: String): BulkDataResult = BulkDataResult(Some(s.getBytes))
   private[this] def int2bytes(i: Int): Array[Byte] = i.toString.getBytes
+  private[this] def double2bytes(d: Double): Array[Byte] = d.toString.getBytes
   private[this] def optVal(key: String) = Option(map.get(key))
 
   override def isOpen: Boolean = true

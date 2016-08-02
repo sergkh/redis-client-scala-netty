@@ -383,6 +383,10 @@ case class Hincrby(key: String, field: String, delta: Int) extends Cmd {
   def asBin = Seq(HINCRBY, key.getBytes(charset), field.getBytes(charset), delta.toString.getBytes)
 }
 
+case class Hincrbyfloat(key: String, field: String, delta: Double) extends Cmd {
+  def asBin = Seq(HINCRBYFLOAT, key.getBytes(charset), field.getBytes(charset), delta.toString.getBytes)
+}
+
 case class Hexists(key: String, field: String) extends Cmd {
   def asBin = Seq(HEXISTS, key.getBytes(charset), field.getBytes(charset))
 }
@@ -413,10 +417,6 @@ case class Hstrlen(key: String, field: String) extends Cmd {
 
 case class Hsetnx(key: String, field: String, value: Array[Byte], nx: Boolean = false) extends Cmd {
   def asBin = Seq(if (nx) HSET else HSETNX, key.getBytes(charset), field.getBytes(charset), value)
-}
-
-case class Hincrbyfloat(key: String, field: String, delta: Double) extends Cmd {
-  def asBin = Seq(HINCRBYFLOAT, key.getBytes(charset), field.getBytes(charset), delta.toString.getBytes)
 }
 
 // sets

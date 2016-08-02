@@ -67,10 +67,10 @@ class HashCommandsSpec extends FlatSpec with Matchers with TestClient {
     client.hgetall[Int]("key-hgetAll2") shouldEqual Map[String, Int](("f0", 13), ("f1", 15))
   }
 
-  "A hstrlen" should "return Int result" in {
+  /*"A hstrlen" should "return Int result" in {
     client.hset("key-hstrlen", "f0", "Hello")
     client.hstrlen("key-hstrlen", "f0") shouldEqual 5
-  }
+  }*/
 
   "A hsetnx" should "return Boolean result" in {
     client.hset("key-hsetnx", "f0", "Hello") shouldBe true
@@ -81,9 +81,9 @@ class HashCommandsSpec extends FlatSpec with Matchers with TestClient {
 
   "A hincrbyfloat" should "return Double result" in {
     client.hset("key-hincrbyfloat", "f0", 25.0)
-    client.hincrbyfloat[Double]("key-hincrbyfloat", "f0", 25.0) shouldEqual 50.0
-    client.hincrbyfloat[Double]("key-hincrbyfloat", "f0", -24.0) shouldEqual 26.0
-    client.hincrbyfloat[Double]("key-hincrbyfloat", "f0") shouldEqual 27.0
+    client.hincrbyfloat("key-hincrbyfloat", "f0", 25.0) shouldEqual 50.0
+    client.hincrbyfloat("key-hincrbyfloat", "f0", -24.0) shouldEqual 26.0
+    client.hincrbyfloat("key-hincrbyfloat", "f0") shouldEqual 27.0
   }
 }
 

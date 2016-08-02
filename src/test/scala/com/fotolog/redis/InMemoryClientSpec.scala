@@ -15,52 +15,52 @@ class InMemoryClientSpec extends FlatSpec with Matchers with TestClient {
   }
 
   it should "support get, set, exists and type operations" in {
-    client.exists("foo") shouldBe false
-    client.set("foo", "bar", 2592000) shouldBe true
+    client.exists("key_foo") shouldBe false
+    client.set("key_foo", "bar", 2592000) shouldBe true
 
-    client.exists("foo") shouldBe true
+    client.exists("key_foo") shouldBe true
 
-    client.get[String]("foo").get shouldEqual "bar"
-    client.keytype("foo") shouldEqual KeyType.String
+    client.get[String]("key_foo").get shouldEqual "bar"
+    client.keytype("key_foo") shouldEqual KeyType.String
 
     // keys test
-    client.set("boo", "baz") shouldBe true
-    client.set("baz", "bar") shouldBe true
-    client.set("buzzword", "bar") shouldBe true
+    client.set("key_boo", "baz") shouldBe true
+    client.set("key_baz", "bar") shouldBe true
+    client.set("key_buzzword", "bar") shouldBe true
 
-    client.keys("?oo") shouldEqual Set("foo", "boo")
-    client.keys("*") shouldEqual Set("foo", "boo", "baz", "buzzword")
-    client.keys("???") shouldEqual Set("foo", "boo", "baz")
-    client.keys("*b*") shouldEqual Set("baz", "buzzword", "boo")
+    client.keys("key_?oo") shouldEqual Set("key_foo", "key_boo")
+    client.keys("*") shouldEqual Set("key_foo", "key_boo", "key_baz", "key_buzzword")
+    client.keys("???????") shouldEqual Set("key_foo", "key_boo", "key_baz")
+    client.keys("*b*") shouldEqual Set("key_baz", "key_buzzword", "key_boo")
 
-    client.del("foo") shouldEqual 1
-    client.exists("foo") shouldBe false
+    client.del("key_foo") shouldEqual 1
+    client.exists("key_foo") shouldBe false
 
-    client.del("foo") shouldEqual 0
+    client.del("key_foo") shouldEqual 0
 
     // rename
-    client.rename("baz", "rbaz") shouldBe true
-    client.exists("baz") shouldBe false
-    client.get[String]("rbaz") shouldEqual Some("bar")
+    client.rename("key_baz", "key_rbaz") shouldBe true
+    client.exists("key_baz") shouldBe false
+    client.get[String]("key_rbaz") shouldEqual Some("bar")
 
     // rename nx
-    client.rename("rbaz", "buzzword", true) shouldBe false
+    client.rename("key_rbaz", "key_buzzword", true) shouldBe false
   }
 
   it should "support inc/dec operations" in {
-    client.set("foo", 1) shouldBe true
-    client.incr("foo", 10) shouldEqual 11
-    client.incr("foo", -11) shouldEqual 0
+    client.set("inc_foo", 1) shouldBe true
+    client.incr("inc_foo", 10) shouldEqual 11
+    client.incr("inc_foo", -11) shouldEqual 0
     client.incr("unexistent", -5) shouldEqual -5
   }
 
-  it should "fail to rename inexistent key" in {
+  it should "fail to rename nonexistent key" in {
     intercept[RedisException] {
       client.rename("non-existent", "newkey")
     }
   }
 
-  it should "fail to increment inexistent key" in {
+  it should "fail to increment nonexistent key" in {
     client.set("baz", "bar") shouldBe true
 
     intercept[RedisException] {
@@ -71,35 +71,37 @@ class InMemoryClientSpec extends FlatSpec with Matchers with TestClient {
 
   it should "support hash commands" in {
 
-    assert(client.hset[String]("foo", "one", "another"), "Problem with creating hash")
-    assert(client.hmset("bar", "baz1" -> "1", "baz2" -> "2"), "Problem with creating 2 values hash")
+    assert(client.hset[String]("hash_foo", "one", "another"), "Problem with creating hash")
+    assert(client.hmset("hash_bar", "baz1" -> "1", "baz2" -> "2"), "Problem with creating 2 values hash")
 
-    client.hget[String]("foo", "one") shouldBe Some("another")
-    client.hget[String]("bar", "baz1") shouldBe Some("1")
+    client.hget[String]("hash_foo", "one") shouldBe Some("another")
+    client.hget[String]("hash_bar", "baz1") shouldBe Some("1")
 
-    assert(Map("baz1" -> "1", "baz2" -> "2") === client.hmget[String]("bar", "baz1", "baz2"), "Resulting map with 2 values")
-    assert(Map("baz2" -> "2") === client.hmget[String]("bar", "baz2"), "Resulting map with 1 values")
+    assert(Map("baz1" -> "1", "baz2" -> "2") === client.hmget[String]("hash_bar", "baz1", "baz2"), "Resulting map with 2 values")
+    assert(Map("baz2" -> "2") === client.hmget[String]("hash_bar", "baz2"), "Resulting map with 1 values")
 
-    assert(7 === client.hincr("bar", "baz2", 5), "Was 2 plus 5 has to give 7")
-    assert(-3 === client.hincr("bar", "baz1", -4), "Was 1 minus 4 has to give -3")
+    assert(7 === client.hincr("hash_bar", "baz2", 5), "Was 2 plus 5 has to give 7")
+    assert(-3 === client.hincr("hash_bar", "baz1", -4), "Was 1 minus 4 has to give -3")
 
-    assert(Map("baz1" -> "-3", "baz2" -> "7") === client.hmget[String]("bar", "baz1", "baz2"), "Changed map has to have values 7, -3")
+    assert(Map("baz1" -> "-3", "baz2" -> "7") === client.hmget[String]("hash_bar", "baz1", "baz2"), "Changed map has to have values 7, -3")
 
-    assert(client.hmset[String]("zoo-key", "foo" -> "{foo}", "baz" -> "{baz}", "vaz" -> "{vaz}", "bzr" -> "{bzr}", "wry" -> "{wry}"))
+    assert(client.hmset[String]("hash_zoo-key", "foo" -> "{foo}", "baz" -> "{baz}", "vaz" -> "{vaz}", "bzr" -> "{bzr}", "wry" -> "{wry}"))
 
-    val map = client.hmget[String]("zoo-key", "foo", "bzr", "vaz", "wry")
+    val map = client.hmget[String]("hash_zoo-key", "foo", "bzr", "vaz", "wry")
 
     for(k <- map.keys) {
       assert("{" + k + "}" == map(k).toString, "Values don't correspond to keys in result")
     }
 
-    assert(Map("vaz" -> "{vaz}", "bzr" -> "{bzr}", "wry" -> "{wry}")=== client.hmget[String]("zoo-key", "boo", "bzr", "vaz", "wry"))
-    assert(5 === client.hlen("zoo-key"), "Length of map elements should be 5")
-    assert(client.hdel("zoo-key", "bzr"), "Problem with deleting")
-    client.hget[String]("zoo-key", "bzr") shouldBe None
+    assert(Map("vaz" -> "{vaz}", "bzr" -> "{bzr}", "wry" -> "{wry}")=== client.hmget[String]("hash_zoo-key", "boo", "bzr", "vaz", "wry"))
+    assert(5 === client.hlen("hash_zoo-key"), "Length of map elements should be 5")
+    assert(client.hdel("hash_zoo-key", "bzr"), "Problem with deleting")
+    client.hget[String]("hash_zoo-key", "bzr") shouldBe None
 
-    assert(client.hexists("zoo-key", "vaz"), "Key 'vaz' should exist in map `zoo-key`")
-    assert(4 === client.hlen("zoo-key"), "Length of map elements should be 2")
+    assert(client.hexists("hash_zoo-key", "vaz"), "Key 'vaz' should exist in map `zoo-key`")
+    assert(4 === client.hlen("hash_zoo-key"), "Length of map elements should be 2")
+    client.hkeys("hash_zoo-key") shouldBe Seq("wry", "vaz", "baz", "foo")
+    client.hkeys("hash_nonexistent-key") shouldBe Nil
   }
 
   /*

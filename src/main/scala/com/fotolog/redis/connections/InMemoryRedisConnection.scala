@@ -222,6 +222,30 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       map.put(sdiffstore.destKey, Data.set(res))
       1
 
+    case sunion: Sunion =>
+      val sets = sunion.keys map (optVal(_) map (_.asSet) getOrElse Set())
+      val res = sets reduceLeft (_ | _) map (f => bytes2res(f.bytes))
+      MultiBulkDataResult(res.toSeq)
+
+    case sunionstore: Sunionstore =>
+      val sets = sunionstore.keys map (optVal(_) map (_.asSet) getOrElse Set())
+      val destSet = optVal(sunionstore.destKey) map (_.asSet) getOrElse Set()
+      val res = sets reduceLeft(_ | _)
+      map.put(sunionstore.destKey, Data.set(res))
+      1
+
+    case Srandmember(key) =>
+      val set = optVal(key) map (_.asSet) getOrElse Set()
+      val randIndex = scala.util.Random.nextInt(set.size)
+      val res = set.toSeq.get(randIndex)
+      bytes2res(res.bytes)
+
+    case Spop(key) =>
+      val set = optVal(key) map (_.asSet) getOrElse Set()
+      val randIndex = scala.util.Random.nextInt(set.size)
+      val res = set.toSeq.get(randIndex)
+      map.put(key, Data.set(set - res))
+      bytes2res(res.bytes)
   }
 
   private[this] def pubSubCmd: PartialFunction[Cmd, Result] = {

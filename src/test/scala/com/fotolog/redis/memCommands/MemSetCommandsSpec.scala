@@ -57,5 +57,39 @@ class MemSetCommandsSpec extends FlatSpec with Matchers with TestClient {
     memClient.smembers[Int]("key4") shouldEqual Set(5, 6, 7)
   }
 
+  "A sunion/sunionstore" should "retunr union of sets" in {
+    memClient.sadd("key", 1, 2 , 3) shouldEqual 3
+    memClient.sadd("key1", 4, 5, 6) shouldEqual 3
+    memClient.sadd("key2", 7, 8, 9) shouldEqual 3
+    memClient.sunion[Int]("key", "key1", "key2") shouldEqual Set(1, 2, 3, 4, 5, 6, 7, 8, 9)
 
+    memClient.sunionstore[Int]("key4", "key", "key1", "key2") shouldEqual 1
+    memClient.smembers[Int]("key4") shouldEqual Set(1, 2, 3, 4, 5, 6, 7, 8, 9)
+
+    memClient.sadd("key5", 1, 2 , 3) shouldEqual 3
+    memClient.sunionstore[Int]("key5", "key", "key1", "key2") shouldEqual 1
+    memClient.smembers[Int]("key5") shouldEqual Set(1, 2, 3, 4, 5, 6, 7, 8, 9)
+  }
+
+  "A srandmember" should "correctly retern random elem from set" in {
+    memClient.sadd("key", "hello", "beaty", "world") shouldEqual 3
+
+    val res = memClient.srandmember[String]("key")
+    res should contain oneOf("hello", "beaty", "world")
+  }
+
+  "A spop " should "randomly remove and return some value from set" in {
+    memClient.sadd("key-spop", "one", "two", "three") shouldEqual 3
+
+
+    val a = memClient.spop[String]("key-spop")
+    a should contain oneOf("one", "two", "three")
+
+    a match {
+      case Some("one") => memClient.smembers[String]("key-spop") shouldEqual Set("two", "three")
+      case Some("two") => memClient.smembers[String]("key-spop") shouldEqual Set("one", "three")
+      case Some("three") => memClient.smembers[String]("key-spop") shouldEqual Set("one", "two")
+      case _ => throw new MatchError("no matches in spop method test")
+    }
+  }
 }

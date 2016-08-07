@@ -8,6 +8,13 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class MemSetCommandsSpec extends FlatSpec with Matchers with TestClient {
 
+  "A sadd/sismember/smembers" should "correctly work" in {
+    memClient.sadd("key", 2 ,3 ) shouldEqual 2
+    memClient.sadd("key", 2, 3, 4, 5) shouldEqual 2
+    memClient.smembers[Int]("key") shouldEqual Set(2, 3, 4, 5)
+    memClient.sismember("key", 4) shouldBe true
+  }
+
   "A srem" should "correctly remove ele from set" in {
     memClient.sadd("key", "Hello", "World") shouldEqual 2
     memClient.srem[String]("key", "Hello1") shouldBe false

@@ -424,8 +424,8 @@ case class Sadd(key: String, values: Seq[Array[Byte]]) extends Cmd {
   def asBin = Seq(SADD, key.getBytes(charset)) ++ values
 }
 
-case class Srem(key: String, v: Array[Byte]) extends Cmd {
-  def asBin = Seq(SREM, key.getBytes(charset), v)
+case class Srem(key: String, value: Array[Byte]) extends Cmd {
+  def asBin = Seq(SREM, key.getBytes(charset), value)
 }
 
 case class Spop(key: String) extends Cmd {

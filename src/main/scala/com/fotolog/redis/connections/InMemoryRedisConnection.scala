@@ -75,7 +75,6 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         }
       } getOrElse bulkNull
 
-
     case hset: Hset =>
       optVal(hset.key) match {
         case Some(data) =>
@@ -176,6 +175,53 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       optVal(key) map (data =>
         MultiBulkDataResult(data.asSet.map(wrapper => bytes2res(wrapper.bytes)).toSeq)
         ) getOrElse MultiBulkDataResult(Seq())
+
+    case Scard(key) => int2res(optVal(key).map(_.asSet.size).getOrElse(0))
+
+    case srem: Srem =>
+      val orig = optVal(srem.key) map (_.asSet) getOrElse Set()
+      val diff = BytesWrapper(srem.value)
+      if (orig.contains(diff)) {
+        map.put(srem.key, Data.set(orig - diff))
+        1
+      }
+      else 0
+
+    case smove: Smove =>
+      val srcSet = optVal(smove.srcKey) map (_.asSet) getOrElse Set()
+      val destSet = optVal(smove.destKey) map (_.asSet) getOrElse Set()
+      val v = BytesWrapper(smove.value)
+      if (srcSet contains v) {
+        map.put(smove.srcKey, Data.set(srcSet - v))
+        map.put(smove.destKey, Data.set(destSet + v))
+        1
+      }
+      else 0
+
+    case sinter: Sinter =>
+      val sets = sinter.keys map (optVal(_) map (_.asSet) getOrElse Set())
+      val res = sets reduceLeft(_ & _) map (f => bytes2res(f.bytes))
+      MultiBulkDataResult(res.toSeq)
+
+    case sinterstore: Sinterstore =>
+      val sets = sinterstore.keys map (optVal(_) map (_.asSet) getOrElse Set())
+      val destSet = optVal(sinterstore.destKey) map (_.asSet) getOrElse Set()
+      val res = sets reduceLeft(_ & _)
+      map.put(sinterstore.destKey, Data.set(res))
+      1
+
+    case sdiff: Sdiff =>
+      val sets = sdiff.keys map (optVal(_) map (_.asSet) getOrElse Set())
+      val res = sets reduceLeft (_ &~ _) map (f => bytes2res(f.bytes))
+      MultiBulkDataResult(res.toSeq)
+
+    case sdiffstore: Sdiffstore =>
+      val sets = sdiffstore.keys map (optVal(_) map (_.asSet) getOrElse Set())
+      val destSet = optVal(sdiffstore.destKey) map (_.asSet) getOrElse Set()
+      val res = sets reduceLeft(_ &~ _)
+      map.put(sdiffstore.destKey, Data.set(res))
+      1
+
   }
 
   private[this] def pubSubCmd: PartialFunction[Cmd, Result] = {

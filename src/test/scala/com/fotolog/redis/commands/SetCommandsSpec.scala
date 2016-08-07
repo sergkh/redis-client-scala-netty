@@ -28,9 +28,8 @@ class SetCommandsSpec extends FlatSpec with Matchers with TestClient {
   }
 
   "A spop method" should "randomly popup some value from set" in {
-    client.sadd("key-spop", "one")
-    client.sadd("key-spop", "two")
-    client.sadd("key-spop", "three")
+    client.sadd("key-spop", "one", "two", "three") shouldEqual 3
+
 
     val a = client.spop[String]("key-spop")
     a should contain oneOf("one", "two", "three")

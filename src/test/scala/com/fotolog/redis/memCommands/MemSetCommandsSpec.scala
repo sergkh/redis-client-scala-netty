@@ -8,7 +8,7 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class MemSetCommandsSpec extends FlatSpec with Matchers with TestClient {
 
-  /*"A srem" should "correctly remove ele from set" in {
+  "A srem" should "correctly remove ele from set" in {
     memClient.sadd("key", "Hello", "World") shouldEqual 2
     memClient.srem[String]("key", "Hello1") shouldBe false
     memClient.srem[String]("key", "Hello") shouldBe true
@@ -55,7 +55,7 @@ class MemSetCommandsSpec extends FlatSpec with Matchers with TestClient {
 
     memClient.sdiffstore("key4", "key", "key1", "key2") shouldEqual 1
     memClient.smembers[Int]("key4") shouldEqual Set(5, 6, 7)
-  }*/
+  }
 
 
 }

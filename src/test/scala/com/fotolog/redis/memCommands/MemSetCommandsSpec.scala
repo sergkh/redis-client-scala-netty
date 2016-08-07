@@ -23,7 +23,7 @@ class MemSetCommandsSpec extends FlatSpec with Matchers with TestClient {
 
   "A smove" should "move elem from source set to destination set" in {
     memClient.sadd("key", "Hello") shouldEqual 1
-    memClient.sadd("key1","World") shouldEqual 1
+    memClient.sadd("key1", "World") shouldEqual 1
     memClient.smove("key", "key1", "Hello") shouldBe true
     memClient.smembers[String]("key") shouldEqual Set()
     memClient.smembers[String]("key1") shouldEqual Set("World", "Hello")
@@ -58,7 +58,7 @@ class MemSetCommandsSpec extends FlatSpec with Matchers with TestClient {
   }
 
   "A sunion/sunionstore" should "retunr union of sets" in {
-    memClient.sadd("key", 1, 2 , 3) shouldEqual 3
+    memClient.sadd("key", 1, 2, 3) shouldEqual 3
     memClient.sadd("key1", 4, 5, 6) shouldEqual 3
     memClient.sadd("key2", 7, 8, 9) shouldEqual 3
     memClient.sunion[Int]("key", "key1", "key2") shouldEqual Set(1, 2, 3, 4, 5, 6, 7, 8, 9)
@@ -66,7 +66,7 @@ class MemSetCommandsSpec extends FlatSpec with Matchers with TestClient {
     memClient.sunionstore[Int]("key4", "key", "key1", "key2") shouldEqual 1
     memClient.smembers[Int]("key4") shouldEqual Set(1, 2, 3, 4, 5, 6, 7, 8, 9)
 
-    memClient.sadd("key5", 1, 2 , 3) shouldEqual 3
+    memClient.sadd("key5", 1, 2, 3) shouldEqual 3
     memClient.sunionstore[Int]("key5", "key", "key1", "key2") shouldEqual 1
     memClient.smembers[Int]("key5") shouldEqual Set(1, 2, 3, 4, 5, 6, 7, 8, 9)
   }
@@ -91,5 +91,10 @@ class MemSetCommandsSpec extends FlatSpec with Matchers with TestClient {
       case Some("three") => memClient.smembers[String]("key-spop") shouldEqual Set("one", "two")
       case _ => throw new MatchError("no matches in spop method test")
     }
+
+    memClient.spop[String]("key-spop") should contain oneOf("one", "two", "three")
+    memClient.spop[String]("key-spop") should contain oneOf("one", "two", "three")
+    memClient.spop[String]("key-spop") shouldEqual None
   }
+
 }

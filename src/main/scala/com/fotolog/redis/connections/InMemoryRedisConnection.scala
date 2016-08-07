@@ -180,12 +180,15 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
     case srem: Srem =>
       val orig = optVal(srem.key) map (_.asSet) getOrElse Set()
-      val diff = BytesWrapper(srem.value)
-      if (orig.contains(diff)) {
-        map.put(srem.key, Data.set(orig - diff))
-        1
+      if (orig.isEmpty) 0
+      else {
+        val diff = BytesWrapper(srem.value)
+        if (orig.contains(diff)) {
+          map.put(srem.key, Data.set(orig - diff))
+          1
+        }
+        else 0
       }
-      else 0
 
     case smove: Smove =>
       val srcSet = optVal(smove.srcKey) map (_.asSet) getOrElse Set()
@@ -242,10 +245,13 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
     case Spop(key) =>
       val set = optVal(key) map (_.asSet) getOrElse Set()
-      val randIndex = scala.util.Random.nextInt(set.size)
-      val res = set.toSeq.get(randIndex)
-      map.put(key, Data.set(set - res))
-      bytes2res(res.bytes)
+      if (set.isEmpty) bulkNull
+      else {
+        val randIndex = scala.util.Random.nextInt(set.size)
+        val res = set.toSeq.get(randIndex)
+        map.put(key, Data.set(set - res))
+        bytes2res(res.bytes)
+      }
   }
 
   private[this] def pubSubCmd: PartialFunction[Cmd, Result] = {

@@ -4,6 +4,7 @@ import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors}
 
 import com.fotolog.redis.{KeyType, RedisException}
+import com.sun.xml.internal.bind.v2.TODO
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
@@ -147,6 +148,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       map.put(h.key, Data.hash(updatedMap))
 
       double2res(bytes2double(updatedMap(h.field), ERR_INVALID_HASH_NUMBER))
+
   }
 
   private[this] def setsCmd: PartialFunction[Cmd, Result] = {
@@ -252,6 +254,76 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         map.put(key, Data.set(set - res))
         bytes2res(res.bytes)
       }
+  }
+
+  private[this] def listCmd: PartialFunction[Cmd, Result] = {
+
+    case Rpush(key, value) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      map.put(key, Data.list(orig :+ BytesWrapper(value)))
+      orig.size + 1
+
+    case Lpush(key, value) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      map.put(key, Data.list(orig.::(BytesWrapper(value))))
+      orig.size + 1
+
+    case Llen(key) =>
+      int2bytes(optVal(key) map (_.asList.size) getOrElse 0)
+
+    case Lrange(key, start, end) =>
+      def lrangeAcc(lst: List[BytesWrapper], start: Int, stop: Int): List[BytesWrapper] = {
+        for {
+          l <- lst
+          if lst.indexOf(l) >= start && lst.indexOf(l) <= stop
+        } yield l
+      }
+
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      (start, end) match {
+        case (s, e) if s < 0 && e < 0 && math.abs(s) <= orig.size =>
+          val res = for { i <- s to e by 1 } yield orig(orig.length + i)
+          res.toList
+
+        case (s, e) if s < 0 && math.abs(s) <= orig.size =>
+          val res = for { i <- s to -1 by 1 } yield orig(orig.length + i)
+          res.toList ::: lrangeAcc(orig, 0, e)
+
+        case (s, e) if s < 0 && math.abs(s) > orig.size =>
+          orig
+        case (s, e) if s > orig.size || s > e => multibulkEmpty
+        case _ => lrangeAcc(orig, start, end)
+      }
+
+    case Ltrim(key, start, end) =>
+
+      /*def trimmer(key: String, lst: List[BytesWrapper]): SingleLineResult = {
+        map.put(key, Data.list(lst))
+        ok
+      }
+
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      (start, end) match {
+        case (s, e) if s > e =>
+          map.put(key, Data.list(Nil))
+          ok
+        case (s, e) if s < 0 && e < 0  && math.abs(s) <= orig.size =>
+          val res = for { i <- s to e by 1 } yield orig(orig.length + i)
+          trimmer(key, res.toList)
+        case (s, e) if s < 0 && math.abs(s) <= orig.size =>
+          val resNeg = for { i <- s to -1 by 1 } yield orig(orig.length + i)
+          val resPos = for { i <- 0 to e by 1} yield orig(i)
+          trimmer(key, resNeg.toList ::: resPos.toList)
+        case (s, _) if s < 0 && math.abs(s) > orig.size =>
+          trimmer(key, orig)
+        case (s, e) if e > orig.size =>
+          val res = for { i <- s until orig.size by 1 } yield orig(i)
+          trimmer(key, res.toList)
+        case _ =>
+          val res = for { i <- start to end by 1 } yield orig(i)
+          trimmer(key, res.toList)
+      }*/
+    //TODO: finish ltrim
   }
 
   private[this] def pubSubCmd: PartialFunction[Cmd, Result] = {
@@ -384,7 +456,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
   }
 
   private[this] def syncSend: PartialFunction[Cmd, Result] =
-    hashCmd orElse setsCmd orElse pubSubCmd orElse scriptingCmd orElse keyCmd orElse serverCmd orElse unsupportedCmd
+    hashCmd orElse setsCmd orElse pubSubCmd orElse listCmd orElse scriptingCmd orElse keyCmd orElse serverCmd orElse unsupportedCmd
 
   private[this] implicit def int2res(v: Int): BulkDataResult = BulkDataResult(Some(v.toString.getBytes))
   private[this] implicit def double2res(v: Double): BulkDataResult = BulkDataResult(Some(v.toString.getBytes))
@@ -405,6 +477,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
   private[this] implicit def bytes2res(a: Array[Byte]): BulkDataResult = BulkDataResult(Some(a))
   private[this] implicit def str2res(s: String): BulkDataResult = BulkDataResult(Some(s.getBytes))
+  private[this] implicit def list2multres(lst: List[BytesWrapper]): MultiBulkDataResult = MultiBulkDataResult(lst map (f => bytes2res(f.bytes)))
   private[this] def int2bytes(i: Int): Array[Byte] = i.toString.getBytes
   private[this] def double2bytes(d: Double): Array[Byte] = d.toString.getBytes
   private[this] def optVal(key: String) = Option(map.get(key))
@@ -453,6 +526,11 @@ private[connections] case class Data(v: AnyRef, ttl: Int = -1, keyType: KeyType 
     case _ => throw new RedisException(ErrMessages.ERR_INVALID_TYPE)
   }
 
+  def asList = keyType match {
+    case KeyType.List => v.asInstanceOf[List[BytesWrapper]]
+    case _ => throw new RedisException(ErrMessages.ERR_INVALID_TYPE)
+  }
+
   def expired = ttl != -1 && Platform.currentTime - stamp > (ttl * 1000L)
   def secondsLeft = if (ttl == -1) -1 else (ttl - (Platform.currentTime - stamp) / 1000).toInt
 }
@@ -461,6 +539,7 @@ private[connections] object Data {
   def str(d: Array[Byte], ttl: Int = -1) = Data(d, ttl, keyType = KeyType.String)
   def hash(map: Map[String, Array[Byte]], ttl: Int = -1) = Data(map, ttl, keyType = KeyType.Hash)
   def set(set: Set[BytesWrapper], ttl: Int = -1) = Data(set, ttl, keyType = KeyType.Set)
+  def list(list: List[BytesWrapper], ttl: Int = -1) = Data(list, ttl, keyType = KeyType.List)
 }
 
 private[connections] case class FakeServer(

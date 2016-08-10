@@ -295,9 +295,9 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         case _ => lrangeAcc(orig, start, end)
       }
 
-    case Ltrim(key, start, end) =>
+    /*case Ltrim(key, start, end) =>
 
-      /*def trimmer(key: String, lst: List[BytesWrapper]): SingleLineResult = {
+      def trimmer(key: String, lst: List[BytesWrapper]): SingleLineResult = {
         map.put(key, Data.list(lst))
         ok
       }

@@ -169,3 +169,9 @@ Also there is convenient `withLock` method:
 ```
 
 Redlock is fully supported by in-memory client.
+
+## Contributing
+
+Any contributions or suggestions are welcome. Feel free to start a discussion in [issues](https://github.com/sergkh/redis-client-scala-netty/issues) or create a pull request.
+
+Thanks to [@poison766](https://github.com/poison766) and [@FayazSanaulla](https://github.com/FayazSanaulla) for their contributions.

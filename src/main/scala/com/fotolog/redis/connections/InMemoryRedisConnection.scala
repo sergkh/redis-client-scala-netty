@@ -4,7 +4,6 @@ import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors}
 
 import com.fotolog.redis.{KeyType, RedisException}
-import com.sun.xml.internal.bind.v2.TODO
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
@@ -272,58 +271,91 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       int2bytes(optVal(key) map (_.asList.size) getOrElse 0)
 
     case Lrange(key, start, end) =>
-      def lrangeAcc(lst: List[BytesWrapper], start: Int, stop: Int): List[BytesWrapper] = {
-        for {
-          l <- lst
-          if lst.indexOf(l) >= start && lst.indexOf(l) <= stop
-        } yield l
+      implicit val orig = optVal(key) map (_.asList) getOrElse Nil
+
+      //iterating between negative values
+      def forNeg(begin: Int, stop: Int)(implicit lst: List[BytesWrapper]) = {
+        val res = for { i <- begin to stop by 1 } yield lst(lst.length + i)
+        res.toList
       }
 
-      val orig = optVal(key) map (_.asList) getOrElse Nil
+      //iterating between positive values
+      def forPos(start: Int, stop: Int)(implicit lst: List[BytesWrapper]) = {
+        val res = for { i <- start to stop by 1} yield lst(i)
+        res.toList
+      }
+
+
       (start, end) match {
-        case (s, e) if s < 0 && e < 0 && math.abs(s) <= orig.size =>
-          val res = for { i <- s to e by 1 } yield orig(orig.length + i)
-          res.toList
-
-        case (s, e) if s < 0 && math.abs(s) <= orig.size =>
-          val res = for { i <- s to -1 by 1 } yield orig(orig.length + i)
-          res.toList ::: lrangeAcc(orig, 0, e)
-
-        case (s, e) if s < 0 && math.abs(s) > orig.size =>
-          orig
-        case (s, e) if s > orig.size || s > e => multibulkEmpty
-        case _ => lrangeAcc(orig, start, end)
+        case (s, e) if (s * e > 0 && s > e) || s > orig.size => multibulkEmpty
+        case (s, e) if math.abs(s) > orig.size => orig
+        case (s, e) if s < 0 && e >= orig.size => orig
+        case (s, e) if s >= 0 && e >=orig.size => forPos(s, orig.size - 1)
+        case (s, e) if s == e && s >= 0 => forPos(s, s)
+        case (s, e) if s == e && s < 0 => forNeg(s, s)
+        case (s, e) if s < 0 && e < 0 => forNeg(s, e)
+        case (s, e) if s < 0 && e >= 0 => forNeg(s, -1) ::: forPos(0, e)
+        case (s, e) if s >= 0 && e < 0 => forPos(s, orig.indexOf(orig.length + e))
+        case (s, e) if s > 0 && e > 0 => forPos(s, e)
       }
+      //TODO :fix lrange function
 
-    /*case Ltrim(key, start, end) =>
+    case Ltrim(key, start, end) =>
+      implicit val orig = optVal(key) map (_.asList) getOrElse Nil
 
-      def trimmer(key: String, lst: List[BytesWrapper]): SingleLineResult = {
+      //puting values in storage
+       def trimAcc(key: String, lst: List[BytesWrapper]): Result = {
         map.put(key, Data.list(lst))
         ok
       }
+      //iterating between negative values
+      def forNeg(start: Int, stop: Int)(implicit lst: List[BytesWrapper]) = {
+        val res = for {i <- start to stop by 1} yield lst(lst.length + i)
+        res.toList
+      }
+
+      //iterating between positive values
+      def forPos(start: Int, stop: Int)(implicit lst: List[BytesWrapper]) = {
+        val res = for { i <- start to stop by 1} yield lst(i)
+        res.toList
+      }
+
+      (start, end) match {
+        case (s, e) if (s > e && s*e > 0) || s > orig.size =>
+          trimAcc(key, Nil)
+        case (s, e) if s < 0 && e < 0  && math.abs(s) <= orig.size =>
+          trimAcc(key, forNeg(s, e))
+        case (s, e) if s < 0 && math.abs(s) <= orig.size =>
+          trimAcc(key, forNeg(s, -1) ::: forPos(0, e))
+        case (s, _) if s < 0 && math.abs(s) > orig.size =>
+          trimAcc(key, orig)
+        case (s, e) if e > orig.size =>
+          trimAcc(key, forPos(s, orig.size -1))
+        case (s, e) if e < 0 =>
+          trimAcc(key, forPos(s, orig.indexOf(orig(orig.length + e))))
+        case _ =>
+          trimAcc(key, forPos(start, end))
+      }
+
+    case Lindex(key, index) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      index match {
+        case i: Int if math.abs(i) > orig.size - 1 => bulkNull
+        case i: Int if i < 0 => BulkDataResult(Some(orig(orig.length + i).bytes))
+        case i: Int if i >= 0 => BulkDataResult(Some(orig(i).bytes))
+      }
+
+    case Lset(key, index, value) =>
 
       val orig = optVal(key) map (_.asList) getOrElse Nil
-      (start, end) match {
-        case (s, e) if s > e =>
-          map.put(key, Data.list(Nil))
+      index match {
+        case ind if ind > 0 => {
+          val res = orig.updated(ind, BytesWrapper(value))
+          map.put(key, Data.list(res))
           ok
-        case (s, e) if s < 0 && e < 0  && math.abs(s) <= orig.size =>
-          val res = for { i <- s to e by 1 } yield orig(orig.length + i)
-          trimmer(key, res.toList)
-        case (s, e) if s < 0 && math.abs(s) <= orig.size =>
-          val resNeg = for { i <- s to -1 by 1 } yield orig(orig.length + i)
-          val resPos = for { i <- 0 to e by 1} yield orig(i)
-          trimmer(key, resNeg.toList ::: resPos.toList)
-        case (s, _) if s < 0 && math.abs(s) > orig.size =>
-          trimmer(key, orig)
-        case (s, e) if e > orig.size =>
-          val res = for { i <- s until orig.size by 1 } yield orig(i)
-          trimmer(key, res.toList)
-        case _ =>
-          val res = for { i <- start to end by 1 } yield orig(i)
-          trimmer(key, res.toList)
-      }*/
-    //TODO: finish ltrim
+        }
+      }
+
   }
 
   private[this] def pubSubCmd: PartialFunction[Cmd, Result] = {

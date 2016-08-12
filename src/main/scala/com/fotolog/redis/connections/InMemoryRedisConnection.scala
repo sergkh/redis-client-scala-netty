@@ -274,31 +274,32 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       implicit val orig = optVal(key) map (_.asList) getOrElse Nil
 
       //iterating between negative values
-      def forNeg(begin: Int, stop: Int)(implicit lst: List[BytesWrapper]) = {
-        val res = for { i <- begin to stop by 1 } yield lst(lst.length + i)
+      def forNeg(begin: Int, stop: Int)(implicit orig: List[BytesWrapper]) = {
+        val res = for { i <- begin to stop by 1 } yield orig(orig.length + i)
         res.toList
       }
 
       //iterating between positive values
-      def forPos(start: Int, stop: Int)(implicit lst: List[BytesWrapper]) = {
-        val res = for { i <- start to stop by 1} yield lst(i)
+      def forPos(start: Int, stop: Int)(implicit orig: List[BytesWrapper]) = {
+        val res = for { i <- start to stop by 1} yield orig(i)
         res.toList
       }
 
-
       (start, end) match {
-        case (s, e) if (s * e > 0 && s > e) || s > orig.size => multibulkEmpty
-        case (s, e) if math.abs(s) > orig.size => orig
-        case (s, e) if s < 0 && e >= orig.size => orig
-        case (s, e) if s >= 0 && e >=orig.size => forPos(s, orig.size - 1)
-        case (s, e) if s == e && s >= 0 => forPos(s, s)
-        case (s, e) if s == e && s < 0 => forNeg(s, s)
-        case (s, e) if s < 0 && e < 0 => forNeg(s, e)
-        case (s, e) if s < 0 && e >= 0 => forNeg(s, -1) ::: forPos(0, e)
-        case (s, e) if s >= 0 && e < 0 => forPos(s, orig.indexOf(orig.length + e))
-        case (s, e) if s > 0 && e > 0 => forPos(s, e)
+        case (s, e) if s < 0 => e match {
+          case e: Int if e < 0 && math.abs(e - s) > orig.size => orig
+          case e: Int if e >= 0 && math.abs(s) + e > orig.size - 1 => orig
+          case e: Int if e >= 0 => forNeg(s, -1) ::: forPos(0, e)
+          case _ => forNeg(s, e)
+        }
+        case (s, e) if s >= 0 => e match {
+          case e: Int if e < 0 && math.abs(e) > orig.size => orig
+          case e: Int if e >= 0 && e - s >= orig.size => orig
+          case e: Int if e >= 0 && e - s < orig.size => forPos(s, e)
+          case e: Int if e < 0 => forPos(s, orig.indexOf(orig.get(orig.length - 1)))
+        }
+        case _ => multibulkEmpty
       }
-      //TODO :fix lrange function
 
     case Ltrim(key, start, end) =>
       implicit val orig = optVal(key) map (_.asList) getOrElse Nil

@@ -82,9 +82,15 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
   }
 
   "A lset" should "update value on existing index" in {
+
     iter(3)
+
     memClient.lset[Int]("key", 1, 4) shouldBe true
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 4, 3)
+
     memClient.lset[Int]("key", -1, 5) shouldBe true
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 4, 5)
+
     memClient.lset[Int]("key", 0, 3) shouldBe true
     memClient.lrange[Int]("key", 0, -1) shouldEqual List(3, 4, 5)
   }

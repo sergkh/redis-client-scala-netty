@@ -54,17 +54,27 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
     memClient.ltrim("key", -1, 2) shouldBe true
     memClient.lrange[Int]("key", 0, 5) shouldEqual List(5, 1, 2, 3)
 
-    memClient.ltrim("key", 1, -1) shouldBe true
-    memClient.lrange[Int]("key", 0, 5) shouldEqual List(1, 2, 3)
+    memClient.ltrim("key", -1, 0) shouldBe true
+    memClient.lrange[Int]("key", 0, 5) shouldEqual List(3, 5)
 
     memClient.ltrim("key", 5, 9) shouldBe true
     memClient.lrange[Int]("key", 0, 5) shouldEqual Nil
 
+    iter(4)
+
+    memClient.ltrim("key", 0, 2) shouldBe true
+    memClient.lrange[Int]("key", 0, 5) shouldEqual List(1, 2, 3)
+
     memClient.ltrim("key", 2, 1) shouldBe true
+    memClient.lrange[Int]("key", 0, 5) shouldEqual Nil
+
+    iter(4)
+
+    memClient.ltrim("key", -2, -3) shouldBe true
     memClient.lrange[Int]("key", 0, 5) shouldEqual Nil
   }
 
-  /*"A lindex" should "return value at index in list stored at key" in {
+  "A lindex" should "return value at index in list stored at key" in {
     iter(3)
     memClient.lindex[Int]("key", 0) shouldEqual Some(1)
     memClient.lindex[Int]("key", -1) shouldEqual Some(3)
@@ -73,8 +83,9 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
 
   "A lset" should "update value on existing index" in {
     iter(3)
-    memClient.lset[Int]("key", 1, 3) shouldBe true
-    //memClient.lset[Int]("key", -1, 5) shouldBe true
-    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 3, 3)
-  }*/
+    memClient.lset[Int]("key", 1, 4) shouldBe true
+    memClient.lset[Int]("key", -1, 5) shouldBe true
+    memClient.lset[Int]("key", 0, 3) shouldBe true
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(3, 4, 5)
+  }
 }

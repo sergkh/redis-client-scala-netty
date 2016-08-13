@@ -350,9 +350,14 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
       val orig = optVal(key) map (_.asList) getOrElse Nil
       index match {
-        case ind if ind > 0 => {
+        case ind if ind >= 0 => {
           val res = orig.updated(ind, BytesWrapper(value))
-          map.put(key, Data.list(res))
+          map.update(key, Data.list(res))
+          ok
+        }
+        case ind if ind < 0 => {
+          val res = orig.updated(orig.length + ind, BytesWrapper(value))
+          map.update(key, Data.list(res))
           ok
         }
       }

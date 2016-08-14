@@ -259,12 +259,16 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
     case Rpush(key, value) =>
       val orig = optVal(key) map (_.asList) getOrElse Nil
-      map.put(key, Data.list(orig :+ BytesWrapper(value)))
+      val elem = List(BytesWrapper(value))
+      val res = orig ::: elem
+      map.put(key, Data.list(res))
       orig.size + 1
 
     case Lpush(key, value) =>
       val orig = optVal(key) map (_.asList) getOrElse Nil
-      map.put(key, Data.list(orig.::(BytesWrapper(value))))
+      val elem = BytesWrapper(value)
+      val res = elem :: orig
+      map.put(key, Data.list(res))
       orig.size + 1
 
     case Llen(key) =>
@@ -296,7 +300,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
           case e: Int if e < 0 && math.abs(e) > orig.size => orig
           case e: Int if e >= 0 && e - s >= orig.size => orig
           case e: Int if e >= 0 && e - s < orig.size => forPos(s, e)
-          case e: Int if e < 0 => forPos(s, orig.indexOf(orig.get(orig.length - 1)))
+          case e: Int if e < 0 => forPos(s, orig.indexOf(orig(orig.length - 1)))
         }
         case _ => multibulkEmpty
       }
@@ -365,6 +369,23 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         }
       }
 
+    case Lpop(key) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      if (orig.isEmpty) bulkNull
+      else {
+        val res = orig.tail
+        map.update(key, Data.list(res))
+        BulkDataResult(Some(orig.head.bytes))
+      }
+
+    case Rpop(key) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      if (orig.isEmpty) bulkNull
+      else {
+        val res = orig.init
+        map.update(key, Data.list(res))
+        BulkDataResult(Some(orig.last.bytes))
+      }
   }
 
   private[this] def pubSubCmd: PartialFunction[Cmd, Result] = {

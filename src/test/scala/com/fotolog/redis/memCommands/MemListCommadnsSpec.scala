@@ -18,21 +18,20 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
   "A rpush" should "add elem to tail of the list" in {
     memClient.rpush("key", 1) shouldEqual 1
     memClient.lrange[Int]("key", 0, -1) shouldEqual List(1)
-    memClient.rpush("key", 2) shouldEqual 2
-    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 2)
+    memClient.rpush("key", 1) shouldEqual 2
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 1)
   }
 
   "A lpush" should "add elem to the head of list" in {
     memClient.lpush("key", 2) shouldEqual 1
     memClient.lrange[Int]("key", 0, -1) shouldEqual List(2)
-    memClient.lpush("key", 1) shouldEqual 2
-    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 2)
+    memClient.lpush("key", 2) shouldEqual 2
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(2, 2)
   }
 
   "A lrange/llen" should "returns the specified elements of the list" in {
 
     iter("key", 4)
-
 
     memClient.lrange[Int]("key", -100, -4) shouldEqual List(1, 2, 3, 4)
     memClient.lrange[Int]("key", -4, -2) shouldEqual List(1, 2, 3)
@@ -46,6 +45,10 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
     memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 2, 3, 4)
     memClient.lrange[Int]("key", 5, 4) shouldEqual Nil
     memClient.lrange[Int]("key", -3, -4) shouldEqual Nil
+
+    iter("key1", 10)
+
+    memClient.lrange[Int]("key1", 0, -1) shouldEqual List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
     memClient.llen("key") shouldEqual 4
   }
@@ -113,7 +116,6 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
     memClient.lpop[Int]("key1") shouldEqual Some(1)
     memClient.lrange[Int]("key1", 0, -1) shouldEqual Nil
 
-
     memClient.lpop[Int]("key2") shouldEqual None
 
   }
@@ -130,9 +132,18 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
     memClient.rpop[Int]("key1") shouldEqual Some(1)
     memClient.lrange[Int]("key1", 0, -1) shouldEqual Nil
 
-
     memClient.rpop[Int]("key2") shouldEqual None
   }
 
+  /*"A lrem" should "correctly remove from list" in {
+
+    iter("key", 4)
+    memClient.rpush("key", 4) shouldEqual 5
+    memClient.lpush("key", 2) shouldEqual 6
+    memClient.lpush("key", 1) shouldEqual 7
+
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 2, 1, 2, 3, 4, 4)
+
+  }*/
 
 }

@@ -259,8 +259,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
     case Rpush(key, value) =>
       val orig = optVal(key) map (_.asList) getOrElse Nil
-      val elem = List(BytesWrapper(value))
-      val res = orig ::: elem
+      val res = orig :+ BytesWrapper(value)
       map.put(key, Data.list(res))
       orig.size + 1
 
@@ -300,7 +299,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
           case e: Int if e < 0 && math.abs(e) > orig.size => orig
           case e: Int if e >= 0 && e - s >= orig.size => orig
           case e: Int if e >= 0 && e - s < orig.size => forPos(s, e)
-          case e: Int if e < 0 => forPos(s, orig.indexOf(orig(orig.length - 1)))
+          case e: Int if e < 0 => forPos(s, /*orig.indexOf(orig(orig.length - 1))*/orig.length + e)
         }
         case _ => multibulkEmpty
       }

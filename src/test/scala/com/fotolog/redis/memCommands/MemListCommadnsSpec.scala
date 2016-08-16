@@ -84,7 +84,9 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
   }
 
   "A lindex" should "return value at index in list stored at key" in {
+
     iter("key", 3)
+
     memClient.lindex[Int]("key", 0) shouldEqual Some(1)
     memClient.lindex[Int]("key", -1) shouldEqual Some(3)
     memClient.lindex[Int]("key", 3) shouldEqual None
@@ -154,5 +156,23 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
     memClient.lrem[Int]("key", 0, 1) shouldEqual 3
     memClient.lrange[Int]("key", 0, -1) shouldEqual List(3)
 
+    memClient.lrem[Int]("key1", 5, 4) shouldEqual 0
+
+  }
+
+  "A rpoplpush" should "correctly work" in {
+
+    iter("src", 4)
+    iter("dest", 4)
+
+    memClient.rpoplpush[Int]("src", "dest") shouldEqual Some(4)
+    memClient.lrange[Int]("src", 0, -1) shouldEqual List(1, 2, 3)
+    memClient.lrange[Int]("dest", 0, -1) shouldEqual List(4, 1, 2, 3, 4)
+
+    memClient.rpoplpush[Int]("src1", "dest") shouldEqual None
+    memClient.lrange[Int]("dest", 0, -1) shouldEqual List(4, 1, 2, 3, 4)
+
+    memClient.rpoplpush[Int]("src", "src") shouldEqual Some(3)
+    memClient.lrange[Int]("src", 0, -1) shouldEqual List(3, 1, 2)
   }
 }

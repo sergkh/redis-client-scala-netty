@@ -256,24 +256,26 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
   }
 
   private[this] def listCmd: PartialFunction[Cmd, Result] = {
-
+    //RPUSH
     case Rpush(key, value) =>
       val orig = optVal(key) map (_.asList) getOrElse Nil
       val res = orig :+ BytesWrapper(value)
       map.put(key, Data.list(res))
       orig.size + 1
 
+    //LPUSH
     case Lpush(key, value) =>
       val orig = optVal(key) map (_.asList) getOrElse Nil
       val res = BytesWrapper(value) :: orig
       map.put(key, Data.list(res))
       orig.size + 1
 
+    //LLEN
     case Llen(key) =>
       int2bytes(optVal(key) map (_.asList.size) getOrElse 0)
 
+    //LRANGE
     case Lrange(key, start, end) =>
-
       implicit val orig = optVal(key) map (_.asList) getOrElse Nil
 
       //iterating between negative values
@@ -304,6 +306,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         case _ => multibulkEmpty
       }
 
+    //LTRIM
     case Ltrim(key, start, end) =>
       implicit val orig = optVal(key) map (_.asList) getOrElse Nil
 
@@ -341,6 +344,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
           trimAcc(key, forPos(start, end))
       }
 
+    //LINDEX
     case Lindex(key, index) =>
       val orig = optVal(key) map (_.asList) getOrElse Nil
       index match {
@@ -349,14 +353,15 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         case i: Int if i >= 0 => BulkDataResult(Some(orig(i).bytes))
       }
 
+    //LSET
     case Lset(key, index, value) =>
+      implicit val orig = optVal(key) map (_.asList) getOrElse Nil
 
       def setter(key: String, lst: List[BytesWrapper]) = {
         map.update(key, Data.list(lst))
         ok
       }
 
-      implicit val orig = optVal(key) map (_.asList) getOrElse Nil
       index match {
         case ind if ind >= 0 => {
           val res = orig.updated(ind, BytesWrapper(value))
@@ -368,6 +373,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         }
       }
 
+    //LPOP
     case Lpop(key) =>
       val orig = optVal(key) map (_.asList) getOrElse Nil
       if (orig.isEmpty) bulkNull
@@ -377,6 +383,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         BulkDataResult(Some(orig.head.bytes))
       }
 
+    //RPOP
     case Rpop(key) =>
       val orig = optVal(key) map (_.asList) getOrElse Nil
       if (orig.isEmpty) bulkNull
@@ -386,8 +393,8 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         BulkDataResult(Some(orig.last.bytes))
       }
 
+    //LREM
     case Lrem(key, count, value) =>
-
       val orig = optVal(key) map (_.asList) getOrElse Nil
 
       def setter(key: String, lst: List[BytesWrapper]) = {
@@ -411,6 +418,28 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
           val res = orig.filterNot(p => p == BytesWrapper(value))
           setter(key, res)
         }
+      }
+
+    //RPOPLPUSH
+    case RpopLpush(srcKey, destKey) =>
+      val srcLst = optVal(srcKey) map (_.asList) getOrElse Nil
+      val destLst = optVal(destKey) map (_.asList) getOrElse Nil
+
+      if (srcKey == destKey) {
+        val pop = srcLst.last
+        map.update(srcKey, Data.list(pop :: srcLst.init))
+        BulkDataResult(Some(pop.bytes))
+      }
+      else if (srcLst.isEmpty) {
+        bulkNull
+      }
+      else {
+        val pop = srcLst.last
+        val nSrc = srcLst.init
+        val nDest = pop :: destLst
+        map.update(srcKey, Data.list(nSrc))
+        map.update(destKey, Data.list(nDest))
+        BulkDataResult(Some(pop.bytes))
       }
   }
 

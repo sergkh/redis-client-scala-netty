@@ -265,8 +265,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
     case Lpush(key, value) =>
       val orig = optVal(key) map (_.asList) getOrElse Nil
-      val elem = BytesWrapper(value)
-      val res = elem :: orig
+      val res = BytesWrapper(value) :: orig
       map.put(key, Data.list(res))
       orig.size + 1
 
@@ -274,17 +273,18 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       int2bytes(optVal(key) map (_.asList.size) getOrElse 0)
 
     case Lrange(key, start, end) =>
+
       implicit val orig = optVal(key) map (_.asList) getOrElse Nil
 
       //iterating between negative values
       def forNeg(begin: Int, stop: Int)(implicit orig: List[BytesWrapper]) = {
-        val res = for { i <- begin to stop by 1 } yield orig(orig.length + i)
+        val res = for {i <- begin to stop by 1} yield orig(orig.length + i)
         res.toList
       }
 
       //iterating between positive values
       def forPos(start: Int, stop: Int)(implicit orig: List[BytesWrapper]) = {
-        val res = for { i <- start to stop by 1} yield orig(i)
+        val res = for {i <- start to stop by 1} yield orig(i)
         res.toList
       }
 
@@ -299,7 +299,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
           case e: Int if e < 0 && math.abs(e) > orig.size => orig
           case e: Int if e >= 0 && e - s >= orig.size => orig
           case e: Int if e >= 0 && e - s < orig.size => forPos(s, e)
-          case e: Int if e < 0 => forPos(s, /*orig.indexOf(orig(orig.length - 1))*/orig.length + e)
+          case e: Int if e < 0 => forPos(s, /*orig.indexOf(orig(orig.length - 1))*/ orig.length + e)
         }
         case _ => multibulkEmpty
       }
@@ -308,7 +308,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       implicit val orig = optVal(key) map (_.asList) getOrElse Nil
 
       //puting values in storage
-       def trimAcc(key: String, lst: List[BytesWrapper]): Result = {
+      def trimAcc(key: String, lst: List[BytesWrapper]): Result = {
         map.put(key, Data.list(lst))
         ok
       }
@@ -320,21 +320,21 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
       //iterating between positive values
       def forPos(start: Int, stop: Int)(implicit lst: List[BytesWrapper]) = {
-        val res = for { i <- start to stop by 1} yield lst(i)
+        val res = for {i <- start to stop by 1} yield lst(i)
         res.toList
       }
 
       (start, end) match {
-        case (s, e) if (s > e && s*e > 0) || s > orig.size =>
+        case (s, e) if (s > e && s * e > 0) || s > orig.size =>
           trimAcc(key, Nil)
-        case (s, e) if s < 0 && e < 0  && math.abs(s) <= orig.size =>
+        case (s, e) if s < 0 && e < 0 && math.abs(s) <= orig.size =>
           trimAcc(key, forNeg(s, e))
         case (s, e) if s < 0 && math.abs(s) <= orig.size =>
           trimAcc(key, forNeg(s, -1) ::: forPos(0, e))
         case (s, _) if s < 0 && math.abs(s) > orig.size =>
           trimAcc(key, orig)
         case (s, e) if e > orig.size =>
-          trimAcc(key, forPos(s, orig.size -1))
+          trimAcc(key, forPos(s, orig.size - 1))
         case (s, e) if e < 0 =>
           trimAcc(key, forPos(s, orig.indexOf(orig(orig.length + e))))
         case _ =>
@@ -384,6 +384,33 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         val res = orig.init
         map.update(key, Data.list(res))
         BulkDataResult(Some(orig.last.bytes))
+      }
+
+    case Lrem(key, count, value) =>
+
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+
+      def setter(key: String, lst: List[BytesWrapper]) = {
+        val len = orig.length
+        map.update(key, Data.list(lst))
+        len - lst.length
+      }
+
+      def tmpList(count: Int, value: Array[Byte]) = List.fill(count)(BytesWrapper(value))
+
+       count match {
+        case count: Int if count < 0 => {
+          val res = orig.reverse.diff(tmpList(math.abs(count), value))
+          setter(key, res.reverse)
+        }
+        case count: Int if count > 0 => {
+          val res = orig.diff(tmpList(count, value))
+          setter(key, res)
+        }
+        case 0 => {
+          val res = orig.filterNot(p => p == BytesWrapper(value))
+          setter(key, res)
+        }
       }
   }
 

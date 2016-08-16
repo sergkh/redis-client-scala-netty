@@ -135,15 +135,24 @@ class MemListCommadnsSpec extends FlatSpec with Matchers with TestClient {
     memClient.rpop[Int]("key2") shouldEqual None
   }
 
-  /*"A lrem" should "correctly remove from list" in {
+  "A lrem" should "correctly remove from list" in {
 
     iter("key", 4)
     memClient.rpush("key", 4) shouldEqual 5
     memClient.lpush("key", 2) shouldEqual 6
     memClient.lpush("key", 1) shouldEqual 7
+    memClient.lpush("key", 1) shouldEqual 8
 
-    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 2, 1, 2, 3, 4, 4)
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 1, 2, 1, 2, 3, 4, 4)
 
-  }*/
+    memClient.lrem[Int]("key", 2, 2) shouldEqual 2
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 1, 1, 3, 4, 4)
 
+    memClient.lrem[Int]("key", -2, 4) shouldEqual 2
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(1, 1, 1, 3)
+
+    memClient.lrem[Int]("key", 0, 1) shouldEqual 3
+    memClient.lrange[Int]("key", 0, -1) shouldEqual List(3)
+
+  }
 }

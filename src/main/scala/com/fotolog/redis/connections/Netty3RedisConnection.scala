@@ -67,9 +67,10 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
   clientBootstrap.setOption("keepAlive", true)
   clientBootstrap.setOption("connectTimeoutMillis", 1000)
 
-  private [Netty3RedisConnection] val channelReady = new CountDownLatch(1)
+  private[Netty3RedisConnection] val channel = newChannel()
 
-  private[Netty3RedisConnection] val channel = {
+  def newChannel() = {
+    val channelReady = new CountDownLatch(1)
     val future = clientBootstrap.connect(new InetSocketAddress(host, port))
     var channelInternal: Channel = null
 

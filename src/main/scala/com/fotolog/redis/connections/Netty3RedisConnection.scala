@@ -16,6 +16,7 @@ import org.jboss.netty.handler.codec.oneone.OneToOneEncoder
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import scala.util.Try
 
 object Netty3RedisConnection {
 
@@ -36,7 +37,8 @@ object Netty3RedisConnection {
             f.promise.failure(new IllegalStateException("Channel closed, command: " + f.cmd))
           }
         } catch {
-          case e: Exception => f.promise.failure(e); conn.shutdown()
+          case e: Exception =>
+            f.promise.failure(e); conn.shutdown()
         }
       }
     }
@@ -83,7 +85,6 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
           channelInternal = future.getChannel
           channelReady.countDown()
         } else {
-          isRunning.set(false)
           channelReady.countDown()
           throw future.getCause
         }
@@ -105,7 +106,7 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
     if (isRunning.get() && !isConnecting.compareAndSet(false, true)) {
       new Thread("reconnection-thread") {
         override def run() {
-          channel.set(newChannel())
+          Try { channel.set(newChannel()) }
         }
       }.start()
 
@@ -126,7 +127,10 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
     channel.get().write(f).addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
   }
 
-  def isOpen: Boolean = isRunning.get() && channel.get().isOpen
+  def isOpen: Boolean = {
+    val channelLocal = channel.get()
+    isRunning.get() && channelLocal != null && channelLocal.isOpen
+  }
 
 
   def shutdown() {

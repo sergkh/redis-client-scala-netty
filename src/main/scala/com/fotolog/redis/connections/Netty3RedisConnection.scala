@@ -32,6 +32,7 @@ object Netty3RedisConnection {
           if (conn.isOpen) {
             conn.enqueue(f)
           } else {
+            conn.reconnect()
             f.promise.failure(new IllegalStateException("Channel closed, command: " + f.cmd))
           }
         } catch {
@@ -49,6 +50,7 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
   import com.fotolog.redis.connections.Netty3RedisConnection._
 
   private[Netty3RedisConnection] val isRunning = new AtomicBoolean(true)
+  private[Netty3RedisConnection] val isConnecting = new AtomicBoolean(false)
   private[Netty3RedisConnection] val clientBootstrap = new ClientBootstrap(channelFactory)
   private[Netty3RedisConnection] val opQueue =  new ArrayBlockingQueue[ResultFuture](1028)
   private[Netty3RedisConnection] var clientState = new AtomicReference[ConnectionState](NormalConnectionState(opQueue))
@@ -67,9 +69,10 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
   clientBootstrap.setOption("keepAlive", true)
   clientBootstrap.setOption("connectTimeoutMillis", 1000)
 
-  private[Netty3RedisConnection] val channel = newChannel()
+  private[Netty3RedisConnection] val channel = new AtomicReference(newChannel())
 
   def newChannel() = {
+    isConnecting.set(true)
     val channelReady = new CountDownLatch(1)
     val future = clientBootstrap.connect(new InetSocketAddress(host, port))
     var channelInternal: Channel = null
@@ -89,12 +92,24 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
 
     try {
       channelReady.await(1, TimeUnit.MINUTES)
+      isConnecting.set(false)
     } catch {
       case iex: InterruptedException =>
         throw new RedisException("Interrupted while waiting for connection")
     }
 
     channelInternal
+  }
+
+  def reconnect() {
+    if (isRunning.get() && !isConnecting.compareAndSet(false, true)) {
+      new Thread("reconnection-thread") {
+        override def run() {
+          channel.set(newChannel())
+        }
+      }.start()
+
+    }
   }
 
   def send(cmd: Cmd): Future[Result] = {
@@ -108,17 +123,18 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
 
   def enqueue(f: ResultFuture) {
     opQueue.offer(f, 10, TimeUnit.SECONDS)
-    channel.write(f).addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
+    channel.get().write(f).addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
   }
 
-  def isOpen: Boolean = isRunning.get() && channel.isOpen
+  def isOpen: Boolean = isRunning.get() && channel.get().isOpen
+
 
   def shutdown() {
     if (isOpen) {
       isRunning.set(false)
       val channelClosed = new CountDownLatch(1)
 
-      channel.close().addListener(new ChannelFutureListener() {
+      channel.get.close().addListener(new ChannelFutureListener() {
         override def operationComplete(channelFuture: ChannelFuture) = {
           channelClosed.countDown()
         }

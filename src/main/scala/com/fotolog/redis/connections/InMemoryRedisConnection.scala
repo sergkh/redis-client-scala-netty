@@ -147,6 +147,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       map.put(h.key, Data.hash(updatedMap))
 
       double2res(bytes2double(updatedMap(h.field), ERR_INVALID_HASH_NUMBER))
+
   }
 
   private[this] def setsCmd: PartialFunction[Cmd, Result] = {
@@ -251,6 +252,194 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         val res = set.toSeq.get(randIndex)
         map.put(key, Data.set(set - res))
         bytes2res(res.bytes)
+      }
+  }
+
+  private[this] def listCmd: PartialFunction[Cmd, Result] = {
+    //RPUSH
+    case Rpush(key, value) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      val res = orig :+ BytesWrapper(value)
+      map.put(key, Data.list(res))
+      orig.size + 1
+
+    //LPUSH
+    case Lpush(key, value) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      val res = BytesWrapper(value) :: orig
+      map.put(key, Data.list(res))
+      orig.size + 1
+
+    //LLEN
+    case Llen(key) =>
+      int2bytes(optVal(key) map (_.asList.size) getOrElse 0)
+
+    //LRANGE
+    case Lrange(key, start, end) =>
+      implicit val orig = optVal(key) map (_.asList) getOrElse Nil
+
+      //iterating between negative values
+      def forNeg(begin: Int, stop: Int)(implicit orig: List[BytesWrapper]) = {
+        val res = for {i <- begin to stop by 1} yield orig(orig.length + i)
+        res.toList
+      }
+
+      //iterating between positive values
+      def forPos(start: Int, stop: Int)(implicit orig: List[BytesWrapper]) = {
+        val res = for {i <- start to stop by 1} yield orig(i)
+        res.toList
+      }
+
+      (start, end) match {
+        case (s, e) if s < 0 => e match {
+          case e: Int if e < 0 && math.abs(e - s) > orig.size => orig
+          case e: Int if e >= 0 && math.abs(s) + e > orig.size - 1 => orig
+          case e: Int if e >= 0 => forNeg(s, -1) ::: forPos(0, e)
+          case _ => forNeg(s, e)
+        }
+        case (s, e) if s >= 0 => e match {
+          case e: Int if e < 0 && math.abs(e) > orig.size => orig
+          case e: Int if e >= 0 && e - s >= orig.size => orig
+          case e: Int if e >= 0 && e - s < orig.size => forPos(s, e)
+          case e: Int if e < 0 => forPos(s, /*orig.indexOf(orig(orig.length - 1))*/ orig.length + e)
+        }
+        case _ => multibulkEmpty
+      }
+
+    //LTRIM
+    case Ltrim(key, start, end) =>
+      implicit val orig = optVal(key) map (_.asList) getOrElse Nil
+
+      //puting values in storage
+      def trimAcc(key: String, lst: List[BytesWrapper]): Result = {
+        map.put(key, Data.list(lst))
+        ok
+      }
+      //iterating between negative values
+      def forNeg(start: Int, stop: Int)(implicit lst: List[BytesWrapper]) = {
+        val res = for {i <- start to stop by 1} yield lst(lst.length + i)
+        res.toList
+      }
+
+      //iterating between positive values
+      def forPos(start: Int, stop: Int)(implicit lst: List[BytesWrapper]) = {
+        val res = for {i <- start to stop by 1} yield lst(i)
+        res.toList
+      }
+
+      (start, end) match {
+        case (s, e) if (s > e && s * e > 0) || s > orig.size =>
+          trimAcc(key, Nil)
+        case (s, e) if s < 0 && e < 0 && math.abs(s) <= orig.size =>
+          trimAcc(key, forNeg(s, e))
+        case (s, e) if s < 0 && math.abs(s) <= orig.size =>
+          trimAcc(key, forNeg(s, -1) ::: forPos(0, e))
+        case (s, _) if s < 0 && math.abs(s) > orig.size =>
+          trimAcc(key, orig)
+        case (s, e) if e > orig.size =>
+          trimAcc(key, forPos(s, orig.size - 1))
+        case (s, e) if e < 0 =>
+          trimAcc(key, forPos(s, orig.indexOf(orig(orig.length + e))))
+        case _ =>
+          trimAcc(key, forPos(start, end))
+      }
+
+    //LINDEX
+    case Lindex(key, index) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      index match {
+        case i: Int if math.abs(i) > orig.size - 1 => bulkNull
+        case i: Int if i < 0 => BulkDataResult(Some(orig(orig.length + i).bytes))
+        case i: Int if i >= 0 => BulkDataResult(Some(orig(i).bytes))
+      }
+
+    //LSET
+    case Lset(key, index, value) =>
+      implicit val orig = optVal(key) map (_.asList) getOrElse Nil
+
+      def setter(key: String, lst: List[BytesWrapper]) = {
+        map.update(key, Data.list(lst))
+        ok
+      }
+
+      index match {
+        case ind if ind >= 0 => {
+          val res = orig.updated(ind, BytesWrapper(value))
+          setter(key, res)
+        }
+        case ind if ind < 0 => {
+          val res = orig.updated(orig.length + ind, BytesWrapper(value))
+          setter(key, res)
+        }
+      }
+
+    //LPOP
+    case Lpop(key) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      if (orig.isEmpty) bulkNull
+      else {
+        val res = orig.tail
+        map.update(key, Data.list(res))
+        BulkDataResult(Some(orig.head.bytes))
+      }
+
+    //RPOP
+    case Rpop(key) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+      if (orig.isEmpty) bulkNull
+      else {
+        val res = orig.init
+        map.update(key, Data.list(res))
+        BulkDataResult(Some(orig.last.bytes))
+      }
+
+    //LREM
+    case Lrem(key, count, value) =>
+      val orig = optVal(key) map (_.asList) getOrElse Nil
+
+      def setter(key: String, lst: List[BytesWrapper]) = {
+        val len = orig.length
+        map.update(key, Data.list(lst))
+        len - lst.length
+      }
+
+      def tmpList(count: Int, value: Array[Byte]) = List.fill(count)(BytesWrapper(value))
+
+       count match {
+        case count: Int if count < 0 => {
+          val res = orig.reverse.diff(tmpList(math.abs(count), value))
+          setter(key, res.reverse)
+        }
+        case count: Int if count > 0 => {
+          val res = orig.diff(tmpList(count, value))
+          setter(key, res)
+        }
+        case 0 => {
+          val res = orig.filterNot(p => p == BytesWrapper(value))
+          setter(key, res)
+        }
+      }
+
+    //RPOPLPUSH
+    case RpopLpush(srcKey, destKey) =>
+      val srcLst = optVal(srcKey) map (_.asList) getOrElse Nil
+      val destLst = optVal(destKey) map (_.asList) getOrElse Nil
+
+      if (srcKey == destKey) {
+        val pop = srcLst.last
+        map.update(srcKey, Data.list(pop :: srcLst.init))
+        BulkDataResult(Some(pop.bytes))
+      }
+      else if (srcLst.isEmpty) {
+        bulkNull
+      }
+      else {
+        val pop = srcLst.last
+        val nSrc = srcLst.init
+        val nDest = pop :: destLst
+        map.update(srcKey, Data.list(nSrc))
+        map.update(destKey, Data.list(nDest))
+        BulkDataResult(Some(pop.bytes))
       }
   }
 
@@ -384,7 +573,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
   }
 
   private[this] def syncSend: PartialFunction[Cmd, Result] =
-    hashCmd orElse setsCmd orElse pubSubCmd orElse scriptingCmd orElse keyCmd orElse serverCmd orElse unsupportedCmd
+    hashCmd orElse setsCmd orElse pubSubCmd orElse listCmd orElse scriptingCmd orElse keyCmd orElse serverCmd orElse unsupportedCmd
 
   private[this] implicit def int2res(v: Int): BulkDataResult = BulkDataResult(Some(v.toString.getBytes))
   private[this] implicit def double2res(v: Double): BulkDataResult = BulkDataResult(Some(v.toString.getBytes))
@@ -405,6 +594,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
   private[this] implicit def bytes2res(a: Array[Byte]): BulkDataResult = BulkDataResult(Some(a))
   private[this] implicit def str2res(s: String): BulkDataResult = BulkDataResult(Some(s.getBytes))
+  private[this] implicit def list2multres(lst: List[BytesWrapper]): MultiBulkDataResult = MultiBulkDataResult(lst map (f => bytes2res(f.bytes)))
   private[this] def int2bytes(i: Int): Array[Byte] = i.toString.getBytes
   private[this] def double2bytes(d: Double): Array[Byte] = d.toString.getBytes
   private[this] def optVal(key: String) = Option(map.get(key))
@@ -453,6 +643,11 @@ private[connections] case class Data(v: AnyRef, ttl: Int = -1, keyType: KeyType 
     case _ => throw new RedisException(ErrMessages.ERR_INVALID_TYPE)
   }
 
+  def asList = keyType match {
+    case KeyType.List => v.asInstanceOf[List[BytesWrapper]]
+    case _ => throw new RedisException(ErrMessages.ERR_INVALID_TYPE)
+  }
+
   def expired = ttl != -1 && Platform.currentTime - stamp > (ttl * 1000L)
   def secondsLeft = if (ttl == -1) -1 else (ttl - (Platform.currentTime - stamp) / 1000).toInt
 }
@@ -461,6 +656,7 @@ private[connections] object Data {
   def str(d: Array[Byte], ttl: Int = -1) = Data(d, ttl, keyType = KeyType.String)
   def hash(map: Map[String, Array[Byte]], ttl: Int = -1) = Data(map, ttl, keyType = KeyType.Hash)
   def set(set: Set[BytesWrapper], ttl: Int = -1) = Data(set, ttl, keyType = KeyType.Set)
+  def list(list: List[BytesWrapper], ttl: Int = -1) = Data(list, ttl, keyType = KeyType.List)
 }
 
 private[connections] case class FakeServer(

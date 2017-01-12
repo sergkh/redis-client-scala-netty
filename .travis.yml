@@ -1,8 +1,8 @@
 language: scala
 scala:
-- 2.11.5
 - 2.11.8
-- 2.12.0
+jdk:
+  - oraclejdk8
 env:
   global:
   - REDIS_TAG=3.2.0
@@ -26,6 +26,6 @@ before_script:
 - export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
 - echo $REDIS_VERSION
 script:
-- sbt clean test package
+- sbt clean test +package
 after_success:
-- test "${TRAVIS_PULL_REQUEST}" = 'false' && test "${TRAVIS_TAG}" != '' && sh "$TRAVIS_BUILD_DIR/.bintray.sh" && sbt publish bintrayRelease
+- test "${TRAVIS_PULL_REQUEST}" = 'false' && test "${TRAVIS_TAG}" != '' && sh "$TRAVIS_BUILD_DIR/.bintray.sh" && sbt +publish bintrayRelease

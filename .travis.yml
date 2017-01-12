@@ -26,7 +26,6 @@ before_script:
 - export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
 - echo $REDIS_VERSION
 script:
-- sbt clean coverage test package
+- sbt clean test package
 after_success:
-- sbt coveralls
 - test "${TRAVIS_PULL_REQUEST}" = 'false' && sh "$TRAVIS_BUILD_DIR/.bintray.sh" && sbt publish bintrayRelease

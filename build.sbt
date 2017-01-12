@@ -2,13 +2,11 @@ name := "redis-scala"
 
 organization := "com.impactua"
 
-val revision = sys.env.getOrElse("TRAVIS_BUILD_NUMBER", "0-SNAPSHOT")
-
-version := s"""1.3.$revision"""
+version := sys.env.getOrElse("TRAVIS_TAG", "1.4.0-SNAPSHOT")
 
 scalaVersion := "2.11.8"
 
-crossScalaVersions := Seq("2.10.4", "2.11.8")
+crossScalaVersions := Seq("2.10.4", "2.11.8", "2.12.0")
 
 licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
 
@@ -26,6 +24,6 @@ concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
 libraryDependencies ++= Seq(
   "io.netty" % "netty" % "3.10.6.Final",
-  "org.scalatest" %% "scalatest" % "2.2.6" % "test",
-  "com.storm-enroute" %% "scalameter" % "0.7" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+  "com.storm-enroute" %% "scalameter" % "0.8.2" % "test"
 )

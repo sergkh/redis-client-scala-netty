@@ -1,13 +1,14 @@
 package com.fotolog.redis
 
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
-import com.fotolog.redis
 import com.fotolog.redis.commands._
 import com.fotolog.redis.connections.{InMemoryRedisConnection, Netty3RedisConnection, RedisConnection}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import scala.util.Try
 
 object RedisClient {
 
@@ -18,31 +19,38 @@ object RedisClient {
   }
 
   @throws(classOf[AuthenticationException])
-  def apply(host: String = "localhost",
-            port: Int = 6379,
-            password: Option[String] = None,
-            timeout: Duration = DEFAULT_TIMEOUT) = {
-    val client = if (host.startsWith("mem:")) {
-      new RedisClient(new InMemoryRedisConnection(host.substring("mem:".length)), timeout)
-    } else {
-      // in case host specified as "host:port" then override port
-      val (aHost, aPort) = if(host.contains(":")) {
-        val Array(h, p) = host.split(":")
-        (h, p.toInt)
-      } else {
-        (host, port)
-      }
+  // redis://[:password@]host[:port][/db-number]
+  def apply(uri: String = "redis://localhost:6379", timeout: Duration = DEFAULT_TIMEOUT) = {
 
-      new RedisClient(new Netty3RedisConnection(aHost, aPort), timeout)
+    val redisUri = new URI(uri)
+
+    Option(redisUri.getScheme) match {
+      case Some("redis") | None =>
+        val port = if (redisUri.getPort > 0) redisUri.getPort else 6379
+        val client = new RedisClient(new Netty3RedisConnection(redisUri.getHost, port), timeout)
+
+        for (userInfo <- Option(redisUri.getUserInfo)) {
+          val password = userInfo.stripPrefix(":")
+
+          if (!client.auth(password)) {
+            throw AuthenticationException("Authentication failed")
+          }
+        }
+
+        for (db <- Option(redisUri.getPath) if db.nonEmpty) {
+          val dbIndex = Try(db.toInt).filter(_ >= 0).getOrElse {
+            throw new IllegalArgumentException(s"Invalid path value: '$db' in URI: '$uri'. Has to be a valid database index")
+          }
+
+          client.select(dbIndex)
+        }
+
+        client
+      case Some("redis-mem") =>
+        new RedisClient(new InMemoryRedisConnection(redisUri.getHost), timeout)
+      case Some(unknownSchema) =>
+        throw new IllegalArgumentException(s"Unsupported schema: '$unknownSchema' in URI: '$uri'. Valid schemas are 'redis' and 'redis-mem://'")
     }
-
-    for (pass <- password) {
-      if (!client.auth(pass)) {
-        throw new AuthenticationException("Authentication failed")
-      }
-    }
-
-    client
   }
 
 }

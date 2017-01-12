@@ -8,7 +8,7 @@ import com.fotolog.redis.{RedisCluster, RedisClient}
  * Usage example:
  *
  * {{{
- *   val redlock = Redlock("192.168.2.11" -> 6379, "192.168.2.12" -> 6379, "192.168.2.13" -> 6379)
+ *   val redlock = Redlock("192.168.2.11:6379", "192.168.2.12:6379", "192.168.2.13:6379")
  *   val lock = redlock.lock("resource-name")
  *
  *   if(lock.successful) {
@@ -130,9 +130,8 @@ object Redlock {
   private[redis] final val UNLOCK_SCRIPT = "if redis.call(\"get\",KEYS[1]) == ARGV[1] then\n return redis.call(\"del\", KEYS[1])\n else\n return 0\n end"
 
   def apply(client: RedisClient): Redlock = new Redlock(Seq(client))
-  def apply(hosts: (String, Int)*): Redlock = new Redlock(hosts.map( h => RedisClient(h._1, h._2)))
+  def apply(uris: String*): Redlock = new Redlock(uris.map(uri => RedisClient(uri)))
   def apply(clients: Array[RedisClient]): Redlock = new Redlock(clients)
-  def apply[T](host: String, port: Int = 6379): Redlock = new Redlock(Seq(RedisClient(host, port)))
 }
 
 trait Lock {

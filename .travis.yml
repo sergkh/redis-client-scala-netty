@@ -1,6 +1,8 @@
 language: scala
 scala:
-- 2.12.0
+- 2.11.8
+jdk:
+  - oraclejdk8
 env:
   global:
   - REDIS_TAG=3.2.0

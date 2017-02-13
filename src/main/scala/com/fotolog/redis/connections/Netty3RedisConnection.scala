@@ -9,11 +9,12 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import com.fotolog.redis._
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.ByteBuf
+import io.netty.channel.ChannelHandler.Sharable
 import io.netty.channel._
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
-import io.netty.handler.codec.ByteToMessageDecoder
+import io.netty.handler.codec.{ByteToMessageDecoder, MessageToByteEncoder}
 import io.netty.util.ByteProcessor
 
 import scala.concurrent.Future
@@ -67,9 +68,11 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
 
     bootstrap.handler(new ChannelInitializer[SocketChannel]() {
       override def initChannel(ch: SocketChannel): Unit = {
-        ch.pipeline().addLast(new RedisResponseDecoder())
+        ch.pipeline().addLast(
+          new RedisResponseDecoder(), new RedisResponseAccumulator(clientState)
+        )
         //new DelimiterBasedFrameDecoder()
-        //new RedisResponseAccumulator(clientState), new RedisCommandEncoder()
+        //, new RedisCommandEncoder()
       }
     })
   }
@@ -168,7 +171,6 @@ private[redis] trait ChannelExceptionHandler {
   }
 }
 
-// ChannelInboundHandlerAdapter
 private[redis] class RedisResponseDecoder extends ByteToMessageDecoder with ChannelExceptionHandler {
 
   val charset: Charset = Charset.forName("UTF-8")
@@ -234,6 +236,92 @@ private[redis] class RedisResponseDecoder extends ByteToMessageDecoder with Chan
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
     handleException(ctx, cause)
+  }
+}
+
+/*class AA extends SimpleChannelInboundHandler {
+  override def channelRead0(ctx: ChannelHandlerContext, msg: Nothing): Unit = ???
+}*/
+
+private[redis] class RedisResponseAccumulator(connStateRef: AtomicReference[ConnectionState]) extends ChannelInboundHandlerAdapter with ChannelExceptionHandler {
+
+  import scala.collection.mutable.ArrayBuffer
+
+  val bulkDataBuffer = ArrayBuffer[BulkDataResult]()
+  var numDataChunks = 0
+
+  final val BULK_NONE = BulkDataResult(None)
+  final val EMPTY_MULTIBULK = MultiBulkDataResult(Seq())
+
+  override def channelRead(ctx: ChannelHandlerContext, msg: AnyRef) {
+    msg match {
+      case (resType: ResponseType, line: String) =>
+        clear()
+        resType match {
+          case Error => handleResult(ErrorResult(line))
+          case SingleLine => handleResult(SingleLineResult(line))
+          case Integer => handleResult(BulkDataResult(Some(line.getBytes)))
+          case MultiBulkData => line.toInt match {
+            case x if x <= 0 => handleResult(EMPTY_MULTIBULK)
+            case n => numDataChunks = line.toInt // ask for bulk data chunks
+          }
+          case _ => throw new Exception("Unexpected %s -> %s".format(resType, line))
+        }
+      case data: ByteBuf => handleDataChunk(data)
+      case NullData => handleDataChunk(null)
+      case _ => throw new Exception("Unexpected error: " + msg)
+    }
+  }
+
+  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+    handleException(ctx, cause)
+  }
+
+  private def handleDataChunk(bulkData: ByteBuf) {
+    val chunk = bulkData match {
+      case null =>
+        BULK_NONE
+      case buf =>
+        if (buf.isReadable) {
+          val bytes = new Array[Byte](buf.readableBytes())
+          buf.readBytes(bytes)
+          BulkDataResult(Some(bytes))
+        } else BulkDataResult(None)
+    }
+
+    numDataChunks match {
+      case 0 =>
+        handleResult(chunk)
+
+      case 1 =>
+        bulkDataBuffer += chunk
+        val allChunks = new Array[BulkDataResult](bulkDataBuffer.length)
+        bulkDataBuffer.copyToArray(allChunks)
+        clear()
+        handleResult(MultiBulkDataResult(allChunks))
+
+      case _ =>
+        bulkDataBuffer += chunk
+        numDataChunks = numDataChunks - 1
+    }
+  }
+
+  private def handleResult(r: Result) {
+    try {
+      val nextStateOpt = connStateRef.get().handle(r)
+
+      for (nextState <- nextStateOpt) {
+        connStateRef.set(nextState)
+      }
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+    }
+  }
+
+  private def clear() {
+    numDataChunks = 0
+    bulkDataBuffer.clear()
   }
 }
 

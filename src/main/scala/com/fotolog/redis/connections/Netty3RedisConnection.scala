@@ -62,17 +62,15 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
     val bootstrap = new Bootstrap()
     bootstrap.group(workerGroup)
     bootstrap.channel(classOf[NioSocketChannel])
-    bootstrap.option(ChannelOption.SO_KEEPALIVE, true)
-    bootstrap.option(ChannelOption.TCP_NODELAY, true)
-    bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000)
+    bootstrap.option(ChannelOption.SO_KEEPALIVE, Boolean.box(true))
+    bootstrap.option(ChannelOption.TCP_NODELAY, Boolean.box(true))
+    bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Int.box(1000))
 
     bootstrap.handler(new ChannelInitializer[SocketChannel]() {
       override def initChannel(ch: SocketChannel): Unit = {
         ch.pipeline().addLast(
-          new RedisResponseDecoder(), new RedisResponseAccumulator(clientState)
+          new RedisResponseDecoder(), new RedisResponseAccumulator(clientState), new RedisCommandEncoder
         )
-        //new DelimiterBasedFrameDecoder()
-        //, new RedisCommandEncoder()
       }
     })
   }

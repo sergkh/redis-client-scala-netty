@@ -2,25 +2,25 @@ package com.fotolog.redis.connections
 
 import java.net.InetSocketAddress
 import java.nio.charset.Charset
+import java.util
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import com.fotolog.redis._
-import org.jboss.netty.bootstrap.ClientBootstrap
-import org.jboss.netty.buffer._
-import org.jboss.netty.channel.ChannelHandler.Sharable
-import org.jboss.netty.channel._
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
-import org.jboss.netty.handler.codec.frame.FrameDecoder
-import org.jboss.netty.handler.codec.oneone.OneToOneEncoder
+import io.netty.bootstrap.Bootstrap
+import io.netty.buffer.ByteBuf
+import io.netty.channel.ChannelHandler.Sharable
+import io.netty.channel._
+import io.netty.channel.nio.NioEventLoopGroup
+import io.netty.channel.socket.SocketChannel
+import io.netty.channel.socket.nio.NioSocketChannel
+import io.netty.handler.codec.ByteToMessageDecoder
 
 import scala.concurrent.Future
 import scala.util.Try
 
 object Netty3RedisConnection {
 
-  private[redis] val executor = Executors.newCachedThreadPool()
-  private[redis] val channelFactory = new NioClientSocketChannelFactory(executor, executor)
   private[redis] val cmdQueue = new ArrayBlockingQueue[(Netty3RedisConnection, ResultFuture)](2048)
 
   private[redis] val queueProcessor = new Runnable {
@@ -51,40 +51,47 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
 
   private[Netty3RedisConnection] val isRunning = new AtomicBoolean(true)
   private[Netty3RedisConnection] val isConnecting = new AtomicBoolean(false)
-  private[Netty3RedisConnection] val clientBootstrap = new ClientBootstrap(channelFactory)
+  private[Netty3RedisConnection] val clientBootstrap = createClientBootstrap
   private[Netty3RedisConnection] val opQueue = new ArrayBlockingQueue[ResultFuture](1028)
   private[Netty3RedisConnection] var clientState = new AtomicReference[ConnectionState](NormalConnectionState(opQueue))
 
-  clientBootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-    override def getPipeline = {
-      val p = Channels.pipeline
-      p.addLast("response_decoder", new RedisResponseDecoder())
-      p.addLast("response_accumulator", new RedisResponseAccumulator(clientState))
-      p.addLast("command_encoder", new RedisCommandEncoder())
-      p
-    }
-  })
+  private[Netty3RedisConnection] def createClientBootstrap: Bootstrap = {
+    val workerGroup: EventLoopGroup = new NioEventLoopGroup()
 
-  clientBootstrap.setOption("tcpNoDelay", true)
-  clientBootstrap.setOption("keepAlive", true)
-  clientBootstrap.setOption("connectTimeoutMillis", 1000)
+    val bootstrap = new Bootstrap()
+    bootstrap.group(workerGroup)
+    bootstrap.channel(classOf[NioSocketChannel])
+    bootstrap.option(ChannelOption.SO_KEEPALIVE, true)
+    bootstrap.option(ChannelOption.TCP_NODELAY, true)
+    bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000)
+
+    bootstrap.handler(new ChannelInitializer[SocketChannel]() {
+      override def initChannel(ch: SocketChannel): Unit = {
+        //ch.pipeline().addLast(new TimeClientHandler());
+        //ch.pipeline().addLast(new RedisResponseDecoder())
+        //new RedisResponseAccumulator(clientState), new RedisCommandEncoder()
+      }
+    })
+  }
 
   private[Netty3RedisConnection] val channel = new AtomicReference(newChannel())
 
-  def newChannel() = {
+  def newChannel(): Channel = {
     isConnecting.set(true)
+
     val channelReady = new CountDownLatch(1)
     val future = clientBootstrap.connect(new InetSocketAddress(host, port))
+
     var channelInternal: Channel = null
 
     future.addListener(new ChannelFutureListener() {
       override def operationComplete(channelFuture: ChannelFuture) = {
         if (future.isSuccess) {
-          channelInternal = future.getChannel
+          channelInternal = channelFuture.channel()
           channelReady.countDown()
         } else {
           channelReady.countDown()
-          throw future.getCause
+          throw channelFuture.cause()
         }
       }
     })
@@ -93,7 +100,7 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
       channelReady.await(1, TimeUnit.MINUTES)
       isConnecting.set(false)
     } catch {
-      case iex: InterruptedException =>
+      case _: InterruptedException =>
         throw new RedisException("Interrupted while waiting for connection")
     }
 
@@ -140,13 +147,14 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
       channel.get.close().addListener(new ChannelFutureListener() {
         override def operationComplete(channelFuture: ChannelFuture) = {
           channelClosed.countDown()
+          //channelFuture.channel().close()
         }
       })
 
       try {
         channelClosed.await(1, TimeUnit.MINUTES)
       } catch {
-        case iex: InterruptedException =>
+        case _: InterruptedException =>
           throw new RedisException("Interrupted while waiting for connection close")
       }
     }

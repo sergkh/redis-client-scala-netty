@@ -4,7 +4,7 @@ import java.net.URI
 import java.util.concurrent.TimeUnit
 
 import com.fotolog.redis.commands._
-import com.fotolog.redis.connections.{InMemoryRedisConnection, Netty3RedisConnection, RedisConnection}
+import com.fotolog.redis.connections.{InMemoryRedisConnection, Netty3RedisConnection, Netty4RedisConnection, RedisConnection}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -27,7 +27,8 @@ object RedisClient {
     Option(redisUri.getScheme) match {
       case Some("redis") | None =>
         val port = if (redisUri.getPort > 0) redisUri.getPort else 6379
-        val client = new RedisClient(new Netty3RedisConnection(redisUri.getHost, port), timeout)
+        //val client = new RedisClient(new Netty3RedisConnection(redisUri.getHost, port), timeout)
+        val client = new RedisClient(new Netty4RedisConnection(redisUri.getHost, port), timeout)
 
         for (userInfo <- Option(redisUri.getUserInfo)) {
           val password = userInfo.stripPrefix(":")

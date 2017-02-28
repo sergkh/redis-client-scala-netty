@@ -23,6 +23,7 @@ bintrayOrganization in bintray := Some("sergkh")
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
 libraryDependencies ++= Seq(
+  "io.netty" % "netty" % "3.10.6.Final",
   "io.netty" % "netty-all" % "4.1.7.Final",
   "org.scalatest" %% "scalatest" % "3.0.1" % Test,
   "com.storm-enroute" %% "scalameter" % "0.8.2" % Test

@@ -60,9 +60,9 @@ class Netty3RedisConnection(val host: String, val port: Int) extends RedisConnec
   clientBootstrap.setPipelineFactory(new ChannelPipelineFactory() {
     override def getPipeline = {
       val p = Channels.pipeline
-      p.addLast("response_decoder", new RedisResponseDecoder())
+      p.addLast("response_decoder",     new RedisResponseDecoder())
       p.addLast("response_accumulator", new RedisResponseAccumulator(clientState))
-      p.addLast("command_encoder", commandEncoder)
+      p.addLast("command_encoder",      commandEncoder)
       p
     }
   })
@@ -180,8 +180,6 @@ private[redis] class RedisCommandEncoder extends OneToOneEncoder {
       params(i) = EOL
       i = i + 1
     }
-
-    println(new String(params.reduce(_ ++ _), "UTF-8"))
     copiedBuffer(params: _*)
   }
 }

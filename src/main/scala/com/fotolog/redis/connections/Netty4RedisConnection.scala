@@ -186,15 +186,12 @@ private[redis] class RedisResponseDecoder4 extends ByteToMessageDecoder with Cha
 
       case Unknown if !in.isReadable =>
 
-      case BulkData => readAsciiLine(in) match {
-        case null =>
-        case line => line.toInt match {
+      case BulkData => readAsciiLine(in).foreach { line => line.toInt match {
           case -1 =>
             responseType = Unknown
             out.add(NullData)
           case n =>
             responseType = BinaryData(n)
-            decode(ctx, in, out)
         }
       }
 
@@ -208,11 +205,9 @@ private[redis] class RedisResponseDecoder4 extends ByteToMessageDecoder with Cha
           out.add(bytes)
         }
 
-      case x => readAsciiLine(in) match {
-        case null =>
-        case line =>
-          responseType = Unknown
-          out.add((x, line))
+      case x => readAsciiLine(in).map { line =>
+        responseType = Unknown
+        out.add((x, line))
       }
     }
   }
@@ -222,13 +217,13 @@ private[redis] class RedisResponseDecoder4 extends ByteToMessageDecoder with Cha
     if (i > 0 && buffer.getByte(i - 1) == '\r') i - 1 else -1
   }
 
-  private def readAsciiLine(buf: ByteBuf): String = if (!buf.isReadable) null else {
+  private def readAsciiLine(buf: ByteBuf): Option[String] = if (!buf.isReadable) None else {
     findEndOfLine(buf) match {
-      case -1 => null
+      case -1 => None
       case n =>
         val line = buf.toString(buf.readerIndex, n - buf.readerIndex, charset)
         buf.skipBytes(line.length + 2)
-        line
+        Some(line)
     }
   }
 

@@ -8,13 +8,13 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import com.fotolog.redis._
 import io.netty.bootstrap.Bootstrap
-import io.netty.buffer.{ByteBuf, Unpooled}
+import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandler.Sharable
 import io.netty.channel._
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
-import io.netty.handler.codec.{ByteToMessageDecoder, DelimiterBasedFrameDecoder, LineBasedFrameDecoder, MessageToByteEncoder}
+import io.netty.handler.codec.{ByteToMessageDecoder, MessageToByteEncoder}
 import io.netty.util.ByteProcessor
 
 import scala.concurrent.Future
@@ -70,7 +70,7 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
       override def initChannel(ch: SocketChannel): Unit = {
         val pipeline = ch.pipeline()
 
-        pipeline.addLast("response_frame_decoder", new DelimiterBasedFrameDecoder(512 * 1024 *1024, false, Unpooled.wrappedBuffer("\r\n".getBytes)))
+        //pipeline.addLast("response_frame_decoder", new DelimiterBasedFrameDecoder(512 * 1024 *1024, false, Unpooled.wrappedBuffer("\r\n".getBytes)))
         pipeline.addLast("response_decoder", new RedisResponseDecoder4())
         pipeline.addLast("response_accumulator", new RedisResponseAccumulator4(clientState))
 
@@ -152,7 +152,6 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
       channel.get.close().addListener(new ChannelFutureListener() {
         override def operationComplete(channelFuture: ChannelFuture) = {
           channelClosed.countDown()
-          //channelFuture.channel().close()
         }
       })
 
@@ -180,29 +179,15 @@ private[redis] class RedisResponseDecoder4 extends ByteToMessageDecoder with Cha
   val charset: Charset = Charset.forName("UTF-8")
   var responseType: ResponseType = Unknown
 
-  //LineBasedFrameDecoder
-  //DelimiterBasedFrameDecoder
-
-  //message received to channel read
-  //Delimiters.lineDelimiter()
-
-  //TODO: not correct
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
-    val array = new Array[Byte](in.readableBytes())
-    val copy = in.copy()
-    copy.readBytes(array)
-
-    println("Decode string: " + new String(array, "UTF-8"))
-
     responseType match {
       case Unknown if in.isReadable =>
         responseType = ResponseType(in.readByte)
-        decode(ctx, in, out)
 
-      case Unknown if !in.isReadable => // need more data
+      case Unknown if !in.isReadable =>
 
       case BulkData => readAsciiLine(in) match {
-        case null => // need more data
+        case null =>
         case line => line.toInt match {
           case -1 =>
             responseType = Unknown
@@ -217,15 +202,14 @@ private[redis] class RedisResponseDecoder4 extends ByteToMessageDecoder with Cha
         if (in.readableBytes >= (len + 2)) {
           // +2 for eol
           responseType = Unknown
-          val data = in.readSlice(len)
-          in.skipBytes(2) // eol is there too
-          out.add(data)
-        } else {
-          // need more data
+          val bytes = new Array[Byte](len)
+          in.readBytes(bytes)
+          in.skipBytes(2)
+          out.add(bytes)
         }
 
       case x => readAsciiLine(in) match {
-        case null => null // need more data
+        case null =>
         case line =>
           responseType = Unknown
           out.add((x, line))
@@ -239,8 +223,6 @@ private[redis] class RedisResponseDecoder4 extends ByteToMessageDecoder with Cha
   }
 
   private def readAsciiLine(buf: ByteBuf): String = if (!buf.isReadable) null else {
-    println("readAsciiLine " + buf)
-
     findEndOfLine(buf) match {
       case -1 => null
       case n =>
@@ -254,10 +236,6 @@ private[redis] class RedisResponseDecoder4 extends ByteToMessageDecoder with Cha
     handleException(ctx, cause)
   }
 }
-
-/*class AA extends SimpleChannelInboundHandler {
-  override def channelRead0(ctx: ChannelHandlerContext, msg: Nothing): Unit = ???
-}*/
 
 private[redis] class RedisResponseAccumulator4(connStateRef: AtomicReference[ConnectionState]) extends ChannelInboundHandlerAdapter with ChannelExceptionHandler4 {
 
@@ -283,8 +261,8 @@ private[redis] class RedisResponseAccumulator4(connStateRef: AtomicReference[Con
           }
           case _ => throw new Exception("Unexpected %s -> %s".format(resType, line))
         }
-      case data: ByteBuf => handleDataChunk(data)
-      case NullData => handleDataChunk(null)
+      case data: Array[Byte] => handleDataChunk(Option(data))
+      case NullData => handleDataChunk(None)
       case _ => throw new Exception("Unexpected error: " + msg)
     }
   }
@@ -293,16 +271,10 @@ private[redis] class RedisResponseAccumulator4(connStateRef: AtomicReference[Con
     handleException(ctx, cause)
   }
 
-  private def handleDataChunk(bulkData: ByteBuf) {
+  private def handleDataChunk(bulkData: Option[Array[Byte]]) {
     val chunk = bulkData match {
-      case null =>
-        BULK_NONE
-      case buf =>
-        if (buf.isReadable) {
-          val bytes = new Array[Byte](buf.readableBytes())
-          buf.readBytes(bytes)
-          BulkDataResult(Some(bytes))
-        } else BulkDataResult(None)
+      case None => BULK_NONE
+      case Some(data) => BulkDataResult(Some(data))
     }
 
     numDataChunks match {
@@ -324,6 +296,7 @@ private[redis] class RedisResponseAccumulator4(connStateRef: AtomicReference[Con
 
   private def handleResult(r: Result) {
     try {
+      //fill result
       val nextStateOpt = connStateRef.get().handle(r)
 
       for (nextState <- nextStateOpt) {
@@ -351,7 +324,6 @@ private[redis] class RedisCommandEncoder4 extends MessageToByteEncoder[ResultFut
   }
 
   private def binaryCmd(cmdParts: Seq[Array[Byte]], out: ByteBuf) = {
-    println("binary command")
     val params = new Array[Array[Byte]](3 * cmdParts.length + 1)
     params(0) = ("*" + cmdParts.length + "\r\n").getBytes
     // num binary chunks
@@ -368,14 +340,5 @@ private[redis] class RedisCommandEncoder4 extends MessageToByteEncoder[ResultFut
     params.foreach { bytes =>
       out.writeBytes(bytes)
     }
-
-    val newBuff = out.copy()
-    val length = newBuff.readableBytes()
-
-    val array = new Array[Byte](length)
-    newBuff.readBytes(array)
-
-    println(new String(array, "UTF-8"))
-    println("Binary cmd end")
   }
 }

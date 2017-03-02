@@ -61,22 +61,21 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
 
     val bootstrap = new Bootstrap()
     bootstrap.group(workerGroup)
-    bootstrap.channel(classOf[NioSocketChannel])
-    bootstrap.option(ChannelOption.SO_KEEPALIVE, Boolean.box(true))
-    bootstrap.option(ChannelOption.TCP_NODELAY, Boolean.box(true))
-    bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Int.box(1000))
+      .channel(classOf[NioSocketChannel])
+      .option(ChannelOption.SO_KEEPALIVE, Boolean.box(true))
+      .option(ChannelOption.TCP_NODELAY, Boolean.box(true))
+      .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Int.box(1000))
+      .handler(new ChannelInitializer[SocketChannel]() {
+        override def initChannel(ch: SocketChannel): Unit = {
+          val pipeline = ch.pipeline()
 
-    bootstrap.handler(new ChannelInitializer[SocketChannel]() {
-      override def initChannel(ch: SocketChannel): Unit = {
-        val pipeline = ch.pipeline()
+          //pipeline.addLast("response_frame_decoder", new DelimiterBasedFrameDecoder(512 * 1024 *1024, false, Unpooled.wrappedBuffer("\r\n".getBytes)))
+          pipeline.addLast("response_decoder", new RedisResponseDecoder4())
+          pipeline.addLast("response_accumulator", new RedisResponseAccumulator4(clientState))
 
-        //pipeline.addLast("response_frame_decoder", new DelimiterBasedFrameDecoder(512 * 1024 *1024, false, Unpooled.wrappedBuffer("\r\n".getBytes)))
-        pipeline.addLast("response_decoder", new RedisResponseDecoder4())
-        pipeline.addLast("response_accumulator", new RedisResponseAccumulator4(clientState))
-
-        pipeline.addLast("command_encoder", new RedisCommandEncoder4())
-      }
-    })
+          pipeline.addLast("command_encoder", new RedisCommandEncoder4())
+        }
+      })
   }
 
   private[Netty4RedisConnection] val channel = new AtomicReference(newChannel())
@@ -134,11 +133,6 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
     f.future
   }
 
-  def enqueue(f: ResultFuture) {
-    opQueue.offer(f, 10, TimeUnit.SECONDS)
-    channel.get().writeAndFlush(f).addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
-  }
-
   def isOpen: Boolean = {
     val channelLocal = channel.get()
     isRunning.get() && channelLocal != null && channelLocal.isOpen
@@ -165,6 +159,11 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
 
     workerGroup.shutdownGracefully()
   }
+
+  private def enqueue(f: ResultFuture) {
+    opQueue.offer(f, 10, TimeUnit.SECONDS)
+    channel.get().writeAndFlush(f).addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
+  }
 }
 
 
@@ -186,7 +185,8 @@ private[redis] class RedisResponseDecoder4 extends ByteToMessageDecoder with Cha
 
       case Unknown if !in.isReadable =>
 
-      case BulkData => readAsciiLine(in).foreach { line => line.toInt match {
+      case BulkData => readAsciiLine(in).foreach { line =>
+        line.toInt match {
           case -1 =>
             responseType = Unknown
             out.add(NullData)
@@ -240,7 +240,7 @@ private[redis] class RedisResponseAccumulator4(connStateRef: AtomicReference[Con
   var numDataChunks = 0
 
   final val BULK_NONE = BulkDataResult(None)
-  final val EMPTY_MULTIBULK = MultiBulkDataResult(Seq())
+  final val EMPTY_MULTIBULK = MultiBulkDataResult(Nil)
 
   override def channelRead(ctx: ChannelHandlerContext, msg: AnyRef) {
     msg match {

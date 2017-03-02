@@ -5,6 +5,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import com.fotolog.redis._
+import com.fotolog.redis.codecs.{RedisCommandEncoder, RedisResponseAccumulator, RedisResponseDecoder}
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel._
 import io.netty.channel.nio.NioEventLoopGroup
@@ -17,7 +18,7 @@ import scala.util.Try
 object Netty4RedisConnection {
 
   private[redis] val cmdQueue = new ArrayBlockingQueue[(Netty4RedisConnection, ResultFuture)](2048)
-  private[redis] val commandEncoder = new codecs.RedisCommandEncoder()
+  private[redis] val commandEncoder = new RedisCommandEncoder()
 
   private[redis] val queueProcessor = new Runnable {
     override def run() = {
@@ -65,8 +66,8 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
           val pipeline = ch.pipeline()
 
           //pipeline.addLast("response_frame_decoder", new DelimiterBasedFrameDecoder(512 * 1024 *1024, false, Unpooled.wrappedBuffer("\r\n".getBytes)))
-          pipeline.addLast("response_decoder", new codecs.RedisResponseDecoder())
-          pipeline.addLast("response_accumulator", new codecs.RedisResponseAccumulator(clientState))
+          pipeline.addLast("response_decoder", new RedisResponseDecoder())
+          pipeline.addLast("response_accumulator", new RedisResponseAccumulator(clientState))
 
           pipeline.addLast("command_encoder", commandEncoder)
         }

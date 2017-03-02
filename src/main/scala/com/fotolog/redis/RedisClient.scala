@@ -27,7 +27,7 @@ object RedisClient {
     Option(redisUri.getScheme) match {
       case Some("redis") | None =>
         val port = if (redisUri.getPort > 0) redisUri.getPort else 6379
-        //val client = new RedisClient(new Netty3RedisConnection(redisUri.getHost, port), timeout)
+
         val client = new RedisClient(new Netty4RedisConnection(redisUri.getHost, port), timeout)
 
         for (userInfo <- Option(redisUri.getUserInfo)) {

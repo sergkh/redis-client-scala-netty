@@ -2,15 +2,15 @@ package com.fotolog.redis.codecs
 
 import java.util.concurrent.atomic.AtomicReference
 
-import com.fotolog.redis.{Error, Integer, MultiBulkData, NullData, ResponseType, SingleLine}
 import com.fotolog.redis.connections._
-import io.netty.channel.{ChannelHandlerContext, ChannelInboundHandlerAdapter, SimpleChannelInboundHandler}
+import com.fotolog.redis.{Error, Integer, MultiBulkData, NullData, ResponseType, SingleLine}
+import io.netty.channel.{ChannelHandlerContext, SimpleChannelInboundHandler}
 
 /**
   * @author Yaroslav Derman <yaroslav.derman@gmail.com>.
   *         created on 02.03.2017.
   */
-private[redis] class RedisResponseAccumulator(connStateRef: AtomicReference[ConnectionState]) extends ChannelInboundHandlerAdapter with ChannelExceptionHandler {
+private[redis] class RedisResponseAccumulator(connStateRef: AtomicReference[ConnectionState]) extends SimpleChannelInboundHandler[AnyRef] with ChannelExceptionHandler {
 
   import scala.collection.mutable.ArrayBuffer
 
@@ -20,7 +20,7 @@ private[redis] class RedisResponseAccumulator(connStateRef: AtomicReference[Conn
   final val BULK_NONE = BulkDataResult(None)
   final val EMPTY_MULTIBULK = MultiBulkDataResult(Nil)
 
-  override def channelRead(ctx: ChannelHandlerContext, msg: AnyRef) {
+  override def channelRead0(ctx: ChannelHandlerContext, msg: AnyRef) {
     msg match {
       case (resType: ResponseType, line: String) =>
         clear()

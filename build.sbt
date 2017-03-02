@@ -26,7 +26,7 @@ val nettyVersion = "4.1.8.Final"
 
 libraryDependencies ++= Seq(
   "io.netty" % "netty-handler" % nettyVersion,
-  "io.netty" % "netty-transport-native-epoll" % nettyVersion,
+  "io.netty" % "netty-transport-native-epoll" % nettyVersion classifier "linux-x86_64",
   "org.scalatest" %% "scalatest" % "3.0.1" % Test,
   "com.storm-enroute" %% "scalameter" % "0.8.2" % Test
 )

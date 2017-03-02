@@ -4,7 +4,7 @@ import java.net.URI
 import java.util.concurrent.TimeUnit
 
 import com.fotolog.redis.commands._
-import com.fotolog.redis.connections.{InMemoryRedisConnection, Netty3RedisConnection, Netty4RedisConnection, RedisConnection}
+import com.fotolog.redis.connections.{InMemoryRedisConnection, Netty4RedisConnection, RedisConnection}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}

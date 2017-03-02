@@ -22,8 +22,11 @@ bintrayOrganization in bintray := Some("sergkh")
 
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
+val nettyVersion = "4.1.8.Final"
+
 libraryDependencies ++= Seq(
-  "io.netty" % "netty-handler" % "4.1.8.Final",
+  "io.netty" % "netty-handler" % nettyVersion,
+  "io.netty" % "netty-transport-native-epoll" % nettyVersion,
   "org.scalatest" %% "scalatest" % "3.0.1" % Test,
   "com.storm-enroute" %% "scalameter" % "0.8.2" % Test
 )

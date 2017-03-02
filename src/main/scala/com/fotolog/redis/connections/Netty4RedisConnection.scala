@@ -8,6 +8,7 @@ import com.fotolog.redis._
 import com.fotolog.redis.codecs.{RedisCommandEncoder, RedisResponseAccumulator, RedisResponseDecoder}
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel._
+import io.netty.channel.epoll.{EpollEventLoopGroup, EpollSocketChannel}
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
@@ -48,16 +49,27 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
 
   private[Netty4RedisConnection] val isRunning = new AtomicBoolean(true)
   private[Netty4RedisConnection] val isConnecting = new AtomicBoolean(false)
-  private[Netty4RedisConnection] val workerGroup: EventLoopGroup = new NioEventLoopGroup()
+  private[Netty4RedisConnection] val (workerGroup, transportProtocol) = selectTransportProtocol
   private[Netty4RedisConnection] val clientBootstrap = createClientBootstrap
   private[Netty4RedisConnection] val opQueue = new ArrayBlockingQueue[ResultFuture](1028)
   private[Netty4RedisConnection] var clientState = new AtomicReference[ConnectionState](NormalConnectionState(opQueue))
+
+  private def selectTransportProtocol = {
+    val osName = Option(System.getProperties.getProperty("os.name")).map(_.toLowerCase)
+    val isUnix = osName.exists(os => os.contains("nix") || os.contains("nux") || os.contains("aix"))
+
+    if (isUnix) {
+      new EpollEventLoopGroup() -> classOf[EpollSocketChannel]
+    } else {
+      new NioEventLoopGroup() -> classOf[NioSocketChannel]
+    }
+  }
 
   private[Netty4RedisConnection] def createClientBootstrap: Bootstrap = {
 
     val bootstrap = new Bootstrap()
     bootstrap.group(workerGroup)
-      .channel(classOf[NioSocketChannel])
+      .channel(transportProtocol)
       .option(ChannelOption.SO_KEEPALIVE, Boolean.box(true))
       .option(ChannelOption.TCP_NODELAY, Boolean.box(true))
       .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Int.box(1000))

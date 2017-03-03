@@ -2,8 +2,6 @@ package com.fotolog.redis.utils
 
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{IncrementOptions, ModifyOpts, ResultOptions}
 
-import scala.collection.JavaConverters._
-
 /**
   * @author Yaroslav Derman <yaroslav.derman@gmail.com>.
   *         created on 03.03.2017.
@@ -24,13 +22,15 @@ object SortedSetOptions {
   }
 
   object ZaddOptions {
-    class ModifyOpts(name: String) {
+    sealed class ModifyOpts(name: String) {
       def asBin = name.getBytes
     }
 
-    object Nx extends ModifyOpts("NX")
+    object NX extends ModifyOpts("NX")
 
-    object Xx extends ModifyOpts("XX")
+    object XX extends ModifyOpts("XX")
+
+    object INCR extends IncrementOptions
 
     class ResultOptions {
       def asBin = "CH".getBytes

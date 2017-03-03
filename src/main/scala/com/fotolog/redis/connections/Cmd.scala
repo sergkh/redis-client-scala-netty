@@ -477,31 +477,6 @@ case class Srandmember(key: String) extends Cmd {
   def asBin = Seq(SRANDMEMBER, key.getBytes(charset))
 }
 
-//sorted set
-case class Zadd(key: String, values: Seq[(String, Array[Byte])], opts: ZaddOptions = ZaddOptions()) extends Cmd {
-  def asBin = Seq(ZADD, key.getBytes(charset)) ++ opts.asBin ++ values.flatMap(kv => List(kv._1.getBytes(charset), kv._2))
-}
-
-case class Zcard(key: String) extends Cmd {
-  def asBin = Seq(ZCARD, key.getBytes(charset))
-}
-
-case class Zcount(key: String, min: Float, max: Float) extends Cmd {
-  def asBin = Seq(ZCOUNT, min.toString.getBytes(charset), max.toString.getBytes(charset))
-}
-
-case class Zincrby(key: String, increment: Float, member: Array[Byte]) extends Cmd {
-  def asBin = Seq(ZINCRBY, increment.toString.getBytes(charset), member)
-}
-
-case class ZINTERSTORE(key: String) extends Cmd {
-  def asBin = ???
-}
-
-case class Zlexcount(key: String, min: Float, max: Float) extends Cmd {
-  def asBin =Seq(ZLEXCOUNT, min.toString.getBytes(charset), max.toString.getBytes(charset))
-}
-
 // scripting
 case class Eval(script: String, kv: Seq[(String, Array[Byte])]) extends Cmd {
   def asBin = EVAL :: script.getBytes(charset) :: kv.length.toString.getBytes :: kv.toList.flatMap { kv => List(kv._1.getBytes(charset), kv._2) }
@@ -596,3 +571,28 @@ case class GeoPos(key: String, members: Seq[String]) extends Cmd {
 // TODO: case class GeoRadius extends Cmd { def asBin = GAORADIUS :: Nil }
 
 // TODO: case class GeoRadiusByMember extends Cmd { def asBin = GEORADIUSBYMEMBER :: Nil }
+
+//sorted set
+case class Zadd(key: String, values: Seq[(String, Array[Byte])], opts: ZaddOptions = ZaddOptions()) extends Cmd {
+  def asBin = Seq(ZADD, key.getBytes(charset)) ++ opts.asBin ++ values.flatMap(kv => List(kv._1.getBytes(charset), kv._2))
+}
+
+case class Zcard(key: String) extends Cmd {
+  def asBin = Seq(ZCARD, key.getBytes(charset))
+}
+
+case class Zcount(key: String, min: Float, max: Float) extends Cmd {
+  def asBin = Seq(ZCOUNT, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset))
+}
+
+case class Zincrby(key: String, increment: Float, member: Array[Byte]) extends Cmd {
+  def asBin = Seq(ZINCRBY, key.getBytes(charset), increment.toString.getBytes(charset), member)
+}
+
+case class ZINTERSTORE(key: String) extends Cmd {
+  def asBin = ???
+}
+
+case class Zlexcount(key: String, min: Array[Byte], max: Array[Byte]) extends Cmd {
+  def asBin =Seq(ZLEXCOUNT, key.getBytes(charset), min, max)
+}

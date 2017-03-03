@@ -36,6 +36,11 @@ private[commands] object ClientCommands {
     case SingleLineResult("QUEUED") => throw new RuntimeException("Should not be read")
   }
 
+  val stringResultAsFloat: PartialFunction[Result, Float] = {
+    case BulkDataResult(Some(v)) => BinaryConverter.FloatConverter.read(v)
+    case SingleLineResult("QUEUED") => throw new RuntimeException("Should not be read")
+  }
+
   def bulkDataResultToOpt[T](convert: BinaryConverter[T]): PartialFunction[Result, Option[T]] = {
     case BulkDataResult(data) => data.map(convert.read)
   }

@@ -2,6 +2,8 @@ package com.fotolog.redis.connections
 
 import java.nio.charset.Charset
 
+import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
+
 private[redis] object Cmd {
 
   val charset = Charset.forName("UTF-8")
@@ -160,7 +162,7 @@ private[redis] object Cmd {
   val ZCARD = "ZCARD".getBytes
   val ZCOUNT = "ZCOUNT".getBytes
   val ZINCRBY = "ZINCRBY".getBytes
-  val ZINTERSTORE = "ZINTERSTORE".getBytes
+  val ZINTERSTORE = "ZINTERSTORE".getBytes // TODO:
   val ZLEXCOUNT = "ZLEXCOUNT".getBytes
   val ZRANGE = "ZRANGE".getBytes
   val ZRANGEBYLEX = "ZRANGEBYLEX".getBytes
@@ -473,6 +475,31 @@ case class Smembers(key: String) extends Cmd {
 
 case class Srandmember(key: String) extends Cmd {
   def asBin = Seq(SRANDMEMBER, key.getBytes(charset))
+}
+
+//sorted set
+case class Zadd(key: String, values: Seq[(String, Array[Byte])], opts: ZaddOptions = ZaddOptions()) extends Cmd {
+  def asBin = Seq(ZADD, key.getBytes(charset)) ++ opts.asBin ++ values.flatMap(kv => List(kv._1.getBytes(charset), kv._2))
+}
+
+case class Zcard(key: String) extends Cmd {
+  def asBin = Seq(ZCARD, key.getBytes(charset))
+}
+
+case class Zcount(key: String, min: Float, max: Float) extends Cmd {
+  def asBin = Seq(ZCOUNT, min.toString.getBytes(charset), max.toString.getBytes(charset))
+}
+
+case class Zincrby(key: String, increment: Float, member: Array[Byte]) extends Cmd {
+  def asBin = Seq(ZINCRBY, increment.toString.getBytes(charset), member)
+}
+
+case class ZINTERSTORE(key: String) extends Cmd {
+  def asBin = ???
+}
+
+case class Zlexcount(key: String, min: Float, max: Float) extends Cmd {
+  def asBin =Seq(ZLEXCOUNT, min.toString.getBytes(charset), max.toString.getBytes(charset))
 }
 
 // scripting

@@ -66,6 +66,17 @@ private[commands] object ClientCommands {
       }.map { kv => kv._1 -> conv.read(kv._2.data.get) }.toMap
   }
 
+  def multiBulkDataResultToMap[K, V](implicit keyConv: BinaryConverter[K], valueConv: BinaryConverter[V]): PartialFunction[Result, Map[K,V]] = {
+    case MultiBulkDataResult(List()) => Map()
+    case MultiBulkDataResult(results) =>
+      var take = false
+      results.zip(results.tail).filter { (_) => take = !take; take }.collect {
+        case (BulkDataResult(Some(keyData)), BulkDataResult(Some(data))) => keyData -> data
+      }.map { kv => keyConv.read(kv._1) -> valueConv.read(kv._2)}.toMap
+    case unknown =>
+      throw UnsupportedResponseException("Unsupported response type: " + unknown)
+  }
+
   def bulkResultToSet[T](conv: BinaryConverter[T]): PartialFunction[Result, Set[T]] = {
     case MultiBulkDataResult(results) => filterEmptyAndMap(results, conv).toSet
     case BulkDataResult(Some(v)) => Set(conv.read(v))

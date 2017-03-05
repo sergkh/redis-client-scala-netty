@@ -3,8 +3,9 @@ package com.fotolog.redis.commands
 import com.fotolog.redis.BinaryConverter
 import com.fotolog.redis.connections._
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import scala.collection.Set
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 /**
@@ -51,7 +52,7 @@ private[redis] trait SortedSetCommands extends ClientCommands {
   }
 
   def zincrby[T](key: String, increment: Float, member: T)(implicit conv: BinaryConverter[T]): Float = await {
-    zincrbyAsync(key, increment, member)
+    zincrbyAsync(key, increment, member)(conv)
   }
 
   def zinterstoreAsync = ???
@@ -63,7 +64,23 @@ private[redis] trait SortedSetCommands extends ClientCommands {
   }
 
   def zlexcount[T](key: String, min: T, max: T)(implicit conv: BinaryConverter[T]): Int = await {
-    zlexcountAsync(key, min, max)
+    zlexcountAsync(key, min, max)(conv)
+  }
+
+  def zrangeAsync[T](key: String, start: Int, stop: Int)(implicit conv: BinaryConverter[T]): Future[Set[T]] = {
+    r.send(Zrange(key, start, stop, false)).map(multiBulkDataResultToSet(conv))
+  }
+
+  def zrange[T](key: String, start: Int, stop: Int)(implicit conv: BinaryConverter[T]): Set[T] = await {
+    zrangeAsync(key, start, stop)(conv)
+  }
+
+  def zrangeWithScoresAsync[T](key: String, start: Int, stop: Int)(implicit conv: BinaryConverter[T]): Future[Map[T, Float]] = {
+    r.send(Zrange(key, start, stop, true)).map(multiBulkDataResultToMap(conv, BinaryConverter.FloatConverter))
+  }
+
+  def zrangeWithScores[T](key: String, start: Int, stop: Int)(implicit conv: BinaryConverter[T]): Map[T, Float] = await {
+    zrangeWithScoresAsync(key, start, stop)(conv)
   }
 
 }

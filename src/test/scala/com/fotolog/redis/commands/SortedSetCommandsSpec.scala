@@ -1,8 +1,8 @@
 package com.fotolog.redis.commands
 
-import com.fotolog.redis.{RedisException, TestClient}
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{INCR, NX, XX}
+import com.fotolog.redis.{RedisException, TestClient}
 import org.scalatest.{FlatSpec, Matchers}
 
 
@@ -42,6 +42,12 @@ class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
   "A zlexcount" should "return the number of elements in the specified score range" in {
     client.zadd[String]("zset-zlexcount", (0F, "a"), (0F, "b"), (0F, "c"), (0F, "d"), (0F, "e")) shouldEqual 5
     client.zlexcount[String]("zset-zlexcount", "[a", "[d") shouldEqual 4
+  }
+
+  "A zrange" should "Returns the specified range of elements in the sorted set" in {
+    client.zadd[String]("zset-zrange", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zrange[String]("zset-zrange", 0, -1) shouldEqual Set("a", "b", "c")
+    client.zrangeWithScores[String]("zset-zrange", 0, -1) shouldEqual Map("a" -> 1F, "b" -> 2F, "c" -> 3F)
   }
 
 }

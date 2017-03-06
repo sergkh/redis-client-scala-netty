@@ -81,5 +81,19 @@ class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
     client.zrange[String]("zset-zrem", 0, -1) shouldEqual Set("b")
   }
 
+  "A zremrangebylex" should "removes all elements in the sorted set stored at key between the lexicographical range specified by min and max" in {
+    client.zadd[String]("zset-zremrangebylex", (0F, "aaaa"), (0F, "b"), (0F, "c"), (0F, "d"), (0F, "e")) shouldEqual 5
+    client.zadd[String]("zset-zremrangebylex", (0F, "foo"), (0F, "zap"), (0F, "zip"), (0F, "ALPHA"), (0F, "alpha")) shouldEqual 5
+    client.zrange[String]("zset-zremrangebylex", 0, -1) shouldEqual Set("ALPHA", "aaaa", "alpha", "b", "c", "d", "e", "foo", "zap", "zip")
+    client.zremRangeByLex("zset-zremrangebylex", "[alpha", "[omega") shouldEqual 6
+    client.zrange[String]("zset-zremrangebylex", 0, -1) shouldEqual Set("ALPHA", "aaaa", "zap", "zip")
+  }
+
+  "A zremrangebyrank" should "removes all elements in the sorted set stored at key with rank between start and stop" in {
+    client.zadd[String]("zset-zremrangebyrank", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zremRangeByRank("zset-zremrangebyrank", 0, 1) shouldEqual 2
+    client.zrange[String]("zset-zremrangebyrank", 0, -1) shouldEqual Set("c")
+  }
+
 }
 

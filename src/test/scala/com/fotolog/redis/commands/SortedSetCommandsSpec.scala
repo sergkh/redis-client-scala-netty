@@ -1,5 +1,6 @@
 package com.fotolog.redis.commands
 
+import com.fotolog.redis.utils.Options.Limit
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{INCR, NX, XX}
 import com.fotolog.redis.{RedisException, TestClient}
@@ -44,10 +45,32 @@ class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
     client.zlexcount[String]("zset-zlexcount", "[a", "[d") shouldEqual 4
   }
 
-  "A zrange" should "Returns the specified range of elements in the sorted set" in {
+  "A zrange" should "returns the specified range of elements in the sorted set" in {
     client.zadd[String]("zset-zrange", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
     client.zrange[String]("zset-zrange", 0, -1) shouldEqual Set("a", "b", "c")
     client.zrangeWithScores[String]("zset-zrange", 0, -1) shouldEqual Map("a" -> 1F, "b" -> 2F, "c" -> 3F)
   }
 
+  "A zrangebylex" should "returns the specified range of elements in the sorted set by lex" in {
+    client.zadd[String]("zset-zrangebylex", (1F, "a"), (1F, "b"), (1F, "c"), (1F, "d"), (1F, "e"), (1F, "f"), (1F, "g")) shouldEqual 7
+    client.zrangeByLex[String]("zset-zrangebylex", "-", "[c") shouldEqual Set("a", "b", "c")
+    client.zrangeByLex[String]("zset-zrangebylex", "-", "(c") shouldEqual Set("a", "b")
+    client.zrangeByLex[String]("zset-zrangebylex", "[aaa", "(g") shouldEqual Set("b", "c", "d", "e", "f")
+  }
+
+  "A zrangebyscore" should "returns all the elements in the sorted set at key with a score between min and max" in {
+    client.zadd[String]("zset-zrangebyscore", (1F, "a"), (1F, "b"), (1F, "c")) shouldEqual 3
+    client.zrangeByScore[String]("zset-zrangebyscore", "-inf", "+inf") shouldEqual Set("a", "b", "c")
+    client.zrangeByScore[String]("zset-zrangebyscore", "-inf", "+inf", Some(Limit(1, 2))) shouldEqual Set("b", "c")
+    client.zrangeByScore[String]("zset-zrangebyscore", "-inf", "+inf", Some(Limit(1, 1))) shouldEqual Set("b")
+    client.zrangeByScoreWithScores[String]("zset-zrangebyscore", "-inf", "+inf") shouldEqual Map("a" -> 1F, "b" -> 1F, "c" -> 1F)
+  }
+
+  "A zrank" should "returns all the elements in the sorted set at key with a score between min and max" in {
+    client.zadd[String]("zset-zrank", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zrank[String]("zset-zrank", "a") shouldEqual 0
+    client.zrank[String]("zset-zrank", "c") shouldEqual 2
+  }
+
 }
+

@@ -2,6 +2,7 @@ package com.fotolog.redis.commands
 
 import com.fotolog.redis.BinaryConverter
 import com.fotolog.redis.connections._
+import com.fotolog.redis.utils.Options.Limit
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
 
 import scala.collection.Set
@@ -17,10 +18,6 @@ private[redis] trait SortedSetCommands extends ClientCommands {
   import com.fotolog.redis.commands.ClientCommands._
 
   def zaddAsync[T](key: String, opts: ZaddOptions, kvs: (Float, T)*)(implicit conv: BinaryConverter[T]): Future[Int] = {
-    if (opts.incOpt.nonEmpty && kvs.length > 1) {
-
-    }
-
     r.send(Zadd(key, kvs.map(els => els._1.toString -> conv.write(els._2)), opts)).map(integerResultAsInt)
   }
 
@@ -81,6 +78,38 @@ private[redis] trait SortedSetCommands extends ClientCommands {
 
   def zrangeWithScores[T](key: String, start: Int, stop: Int)(implicit conv: BinaryConverter[T]): Map[T, Float] = await {
     zrangeWithScoresAsync(key, start, stop)(conv)
+  }
+
+  def zrangeByLexAsync[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Future[Set[T]] = {
+    r.send(ZrangeByLex(key, min, max, limit)).map(multiBulkDataResultToSet(conv))
+  }
+
+  def zrangeByLex[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Set[T] = await {
+    zrangeByLexAsync(key, min, max, limit)(conv)
+  }
+
+  def zrangeByScoreAsync[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Future[Set[T]] = {
+    r.send(ZrangeByScore(key, min, max, false, limit)).map(multiBulkDataResultToSet(conv))
+  }
+
+  def zrangeByScore[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Set[T] = await {
+    zrangeByScoreAsync(key, min, max, limit)(conv)
+  }
+
+  def zrangeByScoreWithScoresAsync[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Future[Map[T, Float]] = {
+    r.send(ZrangeByScore(key, min, max, true, limit)).map(multiBulkDataResultToMap(conv, BinaryConverter.FloatConverter))
+  }
+
+  def zrangeByScoreWithScores[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Map[T, Float] = await {
+    zrangeByScoreWithScoresAsync(key, min, max, limit)(conv)
+  }
+
+  def zrankAsync[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Future[Int] = {
+    r.send(Zrank(key, conv.write(member))).map(integerResultAsInt)
+  }
+
+  def zrank[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Int = await {
+    zrankAsync(key, member)(conv)
   }
 
 }

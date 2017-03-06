@@ -2,6 +2,7 @@ package com.fotolog.redis.connections
 
 import java.nio.charset.Charset
 
+import com.fotolog.redis.utils.Options.Limit
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
 
 private[redis] object Cmd {
@@ -667,7 +668,28 @@ case class Zlexcount(key: String, min: Array[Byte], max: Array[Byte]) extends Cm
 
 case class Zrange(key: String, start: Int, stop: Int, withScores: Boolean) extends Cmd {
   def asBin = {
-    val withscores = if (withScores) Seq(WITHSCORES) else Nil
-    Seq(ZRANGE, key.getBytes(charset), start.toString.getBytes(charset), stop.toString.getBytes(charset)) ++ withscores
+    val _withScores = if (withScores) Seq(WITHSCORES) else Nil
+    Seq(ZRANGE, key.getBytes(charset), start.toString.getBytes(charset), stop.toString.getBytes(charset)) ++ _withScores
+  }
+}
+
+case class ZrangeByLex(key: String, min: String, max: String, limit: Option[Limit]) extends Cmd {
+  def asBin = {
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    Seq(ZRANGEBYLEX, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ withlimits
+  }
+}
+
+case class ZrangeByScore(key: String, min: String, max: String, withScores: Boolean, limit: Option[Limit]) extends Cmd {
+  def asBin = {
+    val _withScores = if (withScores) Seq(WITHSCORES) else Nil
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    Seq(ZRANGEBYSCORE, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ _withScores ++ withlimits
+  }
+}
+
+case class Zrank(key: String, member: Array[Byte]) extends Cmd {
+  def asBin = {
+    Seq(ZRANK, key.getBytes(charset), member)
   }
 }

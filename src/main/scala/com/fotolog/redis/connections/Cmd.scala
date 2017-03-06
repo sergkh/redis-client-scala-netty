@@ -711,3 +711,9 @@ case class ZremRangeByRank(key: String, startRange: Int, stopRange: Int) extends
     Seq(ZREMRANGEBYRANK, key.getBytes(charset), startRange.toString.getBytes(charset), stopRange.toString.getBytes(charset))
   }
 }
+
+case class ZremRangeByScore(key: String, minScore: String, maxScore: String) extends Cmd {
+  def asBin = {
+    Seq(ZREMRANGEBYSCORE, key.getBytes(charset), minScore.toString.getBytes(charset), maxScore.toString.getBytes(charset))
+  }
+}

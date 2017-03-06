@@ -136,4 +136,12 @@ private[redis] trait SortedSetCommands extends ClientCommands {
     zremRangeByRankAsync(key, startRange, stopRange)
   }
 
+  def zremRangeByScoreAsync(key: String, minScore: String, maxScore: String): Future[Int] = {
+    r.send(ZremRangeByScore(key, minScore, maxScore)).map(integerResultAsInt)
+  }
+
+  def zremRangeByScore(key: String, minScore: String, maxScore: String): Int = await {
+    zremRangeByScoreAsync(key, minScore, maxScore)
+  }
+
 }

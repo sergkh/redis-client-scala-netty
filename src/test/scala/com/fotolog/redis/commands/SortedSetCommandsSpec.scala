@@ -95,5 +95,11 @@ class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
     client.zrange[String]("zset-zremrangebyrank", 0, -1) shouldEqual Set("c")
   }
 
+  "A zremrangebyscore" should "Removes all elements in the sorted set stored at key with a score between min and max (inclusive)" in {
+    client.zadd[String]("zset-zremrangebyscore", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zremRangeByScore("zset-zremrangebyscore", "-inf", "(2") shouldEqual 1
+    client.zrange[String]("zset-zremrangebyscore", 0, -1) shouldEqual Set("b", "c")
+  }
+
 }
 

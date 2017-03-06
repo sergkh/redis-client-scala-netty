@@ -706,7 +706,7 @@ case class ZremRangeByLex(key: String, min: String, max: String) extends Cmd {
   }
 }
 
-case class ZremRangeByRank(key: String, startRange: Float, stopRange: Float) extends Cmd {
+case class ZremRangeByRank(key: String, startRange: Int, stopRange: Int) extends Cmd {
   def asBin = {
     Seq(ZREMRANGEBYRANK, key.getBytes(charset), startRange.toString.getBytes(charset), stopRange.toString.getBytes(charset))
   }

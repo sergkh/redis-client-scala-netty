@@ -3,7 +3,7 @@ package com.fotolog.redis.commands
 import com.fotolog.redis._
 import com.fotolog.redis.connections._
 
-import scala.collection.Set
+import scala.collection.{Set, mutable}
 import scala.concurrent.Future
 
 private[redis] trait ClientCommands {
@@ -51,6 +51,10 @@ private[commands] object ClientCommands {
 
   def multiBulkDataResultToSet[T](conv: BinaryConverter[T]): PartialFunction[Result, Set[T]] = {
     case MultiBulkDataResult(results) => filterEmptyAndMap(results, conv).toSet
+  }
+
+  def multiBulkDataResultToLinkedSet[T](conv: BinaryConverter[T]): PartialFunction[Result, Set[T]] = {
+    case MultiBulkDataResult(results) => mutable.LinkedHashSet(filterEmptyAndMap(results, conv):_*)
   }
 
   def multiBulkDataResultToMap[T](keys: Seq[String], conv: BinaryConverter[T]): PartialFunction[Result, Map[String,T]] = {

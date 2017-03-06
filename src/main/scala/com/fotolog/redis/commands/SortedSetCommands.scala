@@ -65,7 +65,7 @@ private[redis] trait SortedSetCommands extends ClientCommands {
   }
 
   def zrangeAsync[T](key: String, start: Int, stop: Int)(implicit conv: BinaryConverter[T]): Future[Set[T]] = {
-    r.send(Zrange(key, start, stop, false)).map(multiBulkDataResultToSet(conv))
+    r.send(Zrange(key, start, stop, false)).map(multiBulkDataResultToLinkedSet(conv))
   }
 
   def zrange[T](key: String, start: Int, stop: Int)(implicit conv: BinaryConverter[T]): Set[T] = await {
@@ -81,7 +81,7 @@ private[redis] trait SortedSetCommands extends ClientCommands {
   }
 
   def zrangeByLexAsync[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Future[Set[T]] = {
-    r.send(ZrangeByLex(key, min, max, limit)).map(multiBulkDataResultToSet(conv))
+    r.send(ZrangeByLex(key, min, max, limit)).map(multiBulkDataResultToLinkedSet(conv))
   }
 
   def zrangeByLex[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Set[T] = await {
@@ -89,7 +89,7 @@ private[redis] trait SortedSetCommands extends ClientCommands {
   }
 
   def zrangeByScoreAsync[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Future[Set[T]] = {
-    r.send(ZrangeByScore(key, min, max, false, limit)).map(multiBulkDataResultToSet(conv))
+    r.send(ZrangeByScore(key, min, max, false, limit)).map(multiBulkDataResultToLinkedSet(conv))
   }
 
   def zrangeByScore[T](key: String, min: String, max: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Set[T] = await {
@@ -128,11 +128,11 @@ private[redis] trait SortedSetCommands extends ClientCommands {
     zremRangeByLexAsync(key, min, max)
   }
 
-  def zremRangeByRankAsync(key: String, startRange: Float, stopRange: Float): Future[Int] = {
+  def zremRangeByRankAsync(key: String, startRange: Int, stopRange: Int): Future[Int] = {
     r.send(ZremRangeByRank(key, startRange, stopRange)).map(integerResultAsInt)
   }
 
-  def zremRangeByRank(key: String, startRange: Float, stopRange: Float): Int = await {
+  def zremRangeByRank(key: String, startRange: Int, stopRange: Int): Int = await {
     zremRangeByRankAsync(key, startRange, stopRange)
   }
 

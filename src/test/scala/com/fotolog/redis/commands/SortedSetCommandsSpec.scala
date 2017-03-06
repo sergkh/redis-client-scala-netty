@@ -72,5 +72,14 @@ class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
     client.zrank[String]("zset-zrank", "c") shouldEqual 2
   }
 
+  "A zrem" should "returns all the elements in the sorted set at key with a score between min and max" in {
+    client.zadd[String]("zset-zrem", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zrem[String]("zset-zrem", "a") shouldEqual 1
+    client.zrange[String]("zset-zrem", 0, -1) shouldEqual Set("b", "c")
+    client.zrem[String]("zset-zrem", "d") shouldEqual 0
+    client.zrem[String]("zset-zrem", "c") shouldEqual 1
+    client.zrange[String]("zset-zrem", 0, -1) shouldEqual Set("b")
+  }
+
 }
 

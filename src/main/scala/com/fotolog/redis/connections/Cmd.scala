@@ -684,12 +684,30 @@ case class ZrangeByScore(key: String, min: String, max: String, withScores: Bool
   def asBin = {
     val _withScores = if (withScores) Seq(WITHSCORES) else Nil
     val withlimits = limit.map(_.asBin).getOrElse(Nil)
-    Seq(ZRANGEBYSCORE, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ _withScores ++ withlimits
+    Seq(ZRANGEBYSCORE, key.getBytes(charset), min.getBytes(charset), max.getBytes(charset)) ++ _withScores ++ withlimits
   }
 }
 
 case class Zrank(key: String, member: Array[Byte]) extends Cmd {
   def asBin = {
     Seq(ZRANK, key.getBytes(charset), member)
+  }
+}
+
+case class Zrem(key: String, members: Seq[Array[Byte]]) extends Cmd {
+  def asBin = {
+    Seq(ZREM, key.getBytes(charset)) ++ members
+  }
+}
+
+case class ZremRangeByLex(key: String, min: String, max: String) extends Cmd {
+  def asBin = {
+    Seq(ZREMRANGEBYLEX, key.getBytes(charset), min.getBytes(charset), max.getBytes(charset))
+  }
+}
+
+case class ZremRangeByRank(key: String, startRange: Float, stopRange: Float) extends Cmd {
+  def asBin = {
+    Seq(ZREMRANGEBYRANK, key.getBytes(charset), startRange.toString.getBytes(charset), stopRange.toString.getBytes(charset))
   }
 }

@@ -112,4 +112,28 @@ private[redis] trait SortedSetCommands extends ClientCommands {
     zrankAsync(key, member)(conv)
   }
 
+  def zremAsync[T](key: String, members: T*)(implicit conv: BinaryConverter[T]): Future[Int] = {
+    r.send(Zrem(key, members.map(conv.write))).map(integerResultAsInt)
+  }
+
+  def zrem[T](key: String, members: T*)(implicit conv: BinaryConverter[T]): Int = await {
+    zremAsync(key, members:_*)(conv)
+  }
+
+  def zremRangeByLexAsync(key: String, min: String, max: String): Future[Int] = {
+    r.send(ZremRangeByLex(key, min, max)).map(integerResultAsInt)
+  }
+
+  def zremRangeByLex(key: String, min: String, max: String): Int = await {
+    zremRangeByLexAsync(key, min, max)
+  }
+
+  def zremRangeByRankAsync(key: String, startRange: Float, stopRange: Float): Future[Int] = {
+    r.send(ZremRangeByRank(key, startRange, stopRange)).map(integerResultAsInt)
+  }
+
+  def zremRangeByRank(key: String, startRange: Float, stopRange: Float): Int = await {
+    zremRangeByRankAsync(key, startRange, stopRange)
+  }
+
 }

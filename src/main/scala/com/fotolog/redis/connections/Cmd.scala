@@ -717,3 +717,30 @@ case class ZremRangeByScore(key: String, minScore: String, maxScore: String) ext
     Seq(ZREMRANGEBYSCORE, key.getBytes(charset), minScore.toString.getBytes(charset), maxScore.toString.getBytes(charset))
   }
 }
+
+case class ZrevRange(key: String, start: Int, stop: Int) extends Cmd {
+  def asBin = {
+    Seq(ZREVRANGE, key.getBytes(charset), start.toString.getBytes(charset), stop.toString.getBytes(charset))
+  }
+}
+
+case class ZrevRangeByLex(key: String, min: String, max: String, limit: Option[Limit]) extends Cmd {
+  def asBin = {
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    Seq(ZREVRANGEBYLEX, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ withlimits
+  }
+}
+
+case class ZrevRangeByScore(key: String, min: String, max: String, limit: Option[Limit], withScores: Boolean) extends Cmd {
+  def asBin = {
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    val _withScores = if (withScores) Seq(WITHSCORES) else Nil
+    Seq(ZREMRANGEBYSCORE, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ _withScores ++ withlimits
+  }
+}
+
+case class Zrevrank(key: String, member: Array[Byte]) extends Cmd {
+  def asBin = {
+    Seq(ZREVRANK, key.getBytes(charset), member)
+  }
+}

@@ -144,4 +144,44 @@ private[redis] trait SortedSetCommands extends ClientCommands {
     zremRangeByScoreAsync(key, minScore, maxScore)
   }
 
+  def zrevRangeAsync(key: String, start: Int, stop: Int): Future[Int] = {
+    r.send(ZrevRange(key, start, stop)).map(integerResultAsInt)
+  }
+
+  def zrevRange(key: String, start: Int, stop: Int): Int = await {
+    zrevRangeAsync(key, start, stop)
+  }
+
+  def zrevRangeByLexAsync(key: String, start: String, stop: String, limit: Option[Limit] = None): Future[Int] = {
+    r.send(ZrevRangeByLex(key, start, stop, limit)).map(integerResultAsInt)
+  }
+
+  def zrevRangeByLex(key: String, start: String, stop: String, limit: Option[Limit] = None): Int = await {
+    zrevRangeByLexAsync(key, start, stop, limit)
+  }
+
+  def zrevRangeByScoreAsync[T](key: String, start: String, stop: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Future[Set[T]] = {
+    r.send(ZrevRangeByScore(key, start, stop, limit, false)).map(multiBulkDataResultToLinkedSet(conv))
+  }
+
+  def zrevRangeByScore[T](key: String, start: String, stop: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Int = await {
+    zrevRangeByLexAsync(key, start, stop, limit)
+  }
+
+  def zrevRangeByScoreWithScoreAsync[T](key: String, start: String, stop: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Future[Map[T, Float]] = {
+    r.send(ZrevRangeByScore(key, start, stop, limit, true)).map(multiBulkDataResultToMap(conv, BinaryConverter.FloatConverter))
+  }
+
+  def zrevRangeByScoreWithScore[T](key: String, start: String, stop: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Map[T, Float] = await {
+    zrevRangeByScoreWithScoreAsync(key, start, stop, limit)(conv)
+  }
+
+  def zrevRankAsync[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Future[Option[Int]] = {
+    r.send(Zrevrank(key, conv.write(member))).map(bulkDataResultToOpt(BinaryConverter.IntConverter))
+  }
+
+  def zrevRank[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Option[Int] = await {
+    zrevRankAsync(key, member)(conv)
+  }
+
 }

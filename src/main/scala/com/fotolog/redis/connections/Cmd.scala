@@ -744,3 +744,9 @@ case class Zrevrank(key: String, member: Array[Byte]) extends Cmd {
     Seq(ZREVRANK, key.getBytes(charset), member)
   }
 }
+
+case class Zscore(key: String, member: Array[Byte]) extends Cmd {
+  def asBin = {
+    Seq(ZSCORE, key.getBytes(charset), member)
+  }
+}

@@ -104,11 +104,11 @@ private[redis] trait SortedSetCommands extends ClientCommands {
     zrangeByScoreWithScoresAsync(key, min, max, limit)(conv)
   }
 
-  def zrankAsync[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Future[Int] = {
-    r.send(Zrank(key, conv.write(member))).map(integerResultAsInt)
+  def zrankAsync[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Future[Option[Int]] = {
+    r.send(Zrank(key, conv.write(member))).map(bulkDataResultToOpt(BinaryConverter.IntConverter))
   }
 
-  def zrank[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Int = await {
+  def zrank[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Option[Int] = await {
     zrankAsync(key, member)(conv)
   }
 
@@ -182,6 +182,14 @@ private[redis] trait SortedSetCommands extends ClientCommands {
 
   def zrevRank[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Option[Int] = await {
     zrevRankAsync(key, member)(conv)
+  }
+
+  def zscoreAsync[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Future[Option[Float]] = {
+    r.send(Zscore(key, conv.write(member))).map(bulkDataResultToOpt(BinaryConverter.FloatConverter))
+  }
+
+  def zscore[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Option[Float] = await {
+    zscoreAsync(key, member)(conv)
   }
 
 }

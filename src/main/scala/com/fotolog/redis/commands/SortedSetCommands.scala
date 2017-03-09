@@ -144,11 +144,11 @@ private[redis] trait SortedSetCommands extends ClientCommands {
     zremRangeByScoreAsync(key, minScore, maxScore)
   }
 
-  def zrevRangeAsync(key: String, start: Int, stop: Int): Future[Int] = {
-    r.send(ZrevRange(key, start, stop)).map(integerResultAsInt)
+  def zrevRangeAsync[T](key: String, start: Int, stop: Int)(implicit conv: BinaryConverter[T]): Future[Set[T]] = {
+    r.send(ZrevRange(key, start, stop)).map(multiBulkDataResultToLinkedSet(conv))
   }
 
-  def zrevRange(key: String, start: Int, stop: Int): Int = await {
+  def zrevRange[T](key: String, start: Int, stop: Int)(implicit conv: BinaryConverter[T]): Set[T] = await {
     zrevRangeAsync(key, start, stop)
   }
 

@@ -68,8 +68,8 @@ class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
 
   "A zrank" should "returns all the elements in the sorted set at key with a score between min and max" in {
     client.zadd[String]("zset-zrank", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
-    client.zrank[String]("zset-zrank", "a") shouldEqual 0
-    client.zrank[String]("zset-zrank", "c") shouldEqual 2
+    client.zrank[String]("zset-zrank", "a") shouldEqual Some(0)
+    client.zrank[String]("zset-zrank", "c") shouldEqual Some(2)
   }
 
   "A zrem" should "returns all the elements in the sorted set at key with a score between min and max" in {
@@ -95,11 +95,17 @@ class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
     client.zrange[String]("zset-zremrangebyrank", 0, -1) shouldEqual Set("c")
   }
 
-  "A zremrangebyscore" should "Removes all elements in the sorted set stored at key with a score between min and max (inclusive)" in {
+  "A zremrangebyscore" should "removes all elements in the sorted set stored at key with a score between min and max (inclusive)" in {
     client.zadd[String]("zset-zremrangebyscore", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
     client.zremRangeByScore("zset-zremrangebyscore", "-inf", "(2") shouldEqual 1
     client.zrange[String]("zset-zremrangebyscore", 0, -1) shouldEqual Set("b", "c")
   }
 
-}
+  "A zrevrange" should "returns the specified range of elements in the sorted set stored at key" in {
+    client.zadd[String]("zset-zrevtange", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zrevRange[String]("zset-zrevtange", 0, -1) shouldEqual Set("c", "b", "a")
+    client.zrevRange[String]("zset-zrevtange", 2, 3) shouldEqual Set("a")
+    client.zrevRange[String]("zset-zrevtange", -2, -1) shouldEqual Set("b", "a")
+  }
 
+}

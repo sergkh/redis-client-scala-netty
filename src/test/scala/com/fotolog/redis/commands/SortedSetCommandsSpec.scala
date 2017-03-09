@@ -108,4 +108,31 @@ class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
     client.zrevRange[String]("zset-zrevtange", -2, -1) shouldEqual Set("b", "a")
   }
 
+  "A zrevrangebylex" should "returns the specified range of elements in the sorted set stored at key" in {
+    client.zadd[String]("zset-zrevrangebylex", (1F, "a"), (1F, "b"), (1F, "c"), (1F, "d"), (1F, "e"), (1F, "f"), (1F, "g")) shouldEqual 7
+    client.zrevRangeByLex[String]("zset-zrevrangebylex", "[c", "-") shouldEqual Set("c", "b", "a")
+    client.zrevRangeByLex[String]("zset-zrevrangebylex", "(c", "-") shouldEqual Set("b", "a")
+    client.zrevRangeByLex[String]("zset-zrevrangebylex", "(g", "[aaa") shouldEqual Set("f", "e", "d", "c", "b")
+  }
+
+  "A zrevrangebyscore" should "returns all the elements in the sorted set at key with a score between max and min (including elements with score equal to max or min)" in {
+    client.zadd[String]("zset-zrevrangebyscore", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zrevRangeByScore[String]("zset-zrevrangebyscore", "+inf", "-inf") shouldEqual Set("c", "b", "a")
+    client.zrevRangeByScore[String]("zset-zrevrangebyscore", "2", "1") shouldEqual Set("b", "a")
+    client.zrevRangeByScore[String]("zset-zrevrangebyscore", "2", "(1") shouldEqual Set("b")
+    client.zrevRangeByScore[String]("zset-zrevrangebyscore", "(2", "(1") shouldEqual Set()
+    client.zrevRangeByScoreWithScore[String]("zset-zrevrangebyscore", "+inf", "-inf") shouldEqual Map("c" -> 3F, "b" -> 2f, "a" -> 1f)
+  }
+
+  "A zrevrank" should "returns the rank of member in the sorted set stored at key, with the scores ordered from high to low" in {
+    client.zadd[String]("zset-zrevrank", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zrevRank[String]("zset-zrevrank", "a") shouldEqual Some(2)
+    client.zrevRank[String]("zset-zrevrank", "d") shouldEqual None
+  }
+
+  "A zscore" should "returns the score of member in the sorted set at key" in {
+    client.zadd[String]("zset-zscore", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zscore[String]("zset-zscore", "a") shouldEqual Some(1F)
+  }
+  
 }

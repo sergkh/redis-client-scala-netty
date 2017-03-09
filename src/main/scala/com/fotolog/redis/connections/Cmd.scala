@@ -735,7 +735,7 @@ case class ZrevRangeByScore(key: String, min: String, max: String, limit: Option
   def asBin = {
     val withlimits = limit.map(_.asBin).getOrElse(Nil)
     val _withScores = if (withScores) Seq(WITHSCORES) else Nil
-    Seq(ZREMRANGEBYSCORE, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ _withScores ++ withlimits
+    Seq(ZREVRANGEBYSCORE, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ _withScores ++ withlimits
   }
 }
 

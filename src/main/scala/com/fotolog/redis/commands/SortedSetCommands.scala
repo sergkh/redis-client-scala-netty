@@ -152,11 +152,11 @@ private[redis] trait SortedSetCommands extends ClientCommands {
     zrevRangeAsync(key, start, stop)
   }
 
-  def zrevRangeByLexAsync(key: String, start: String, stop: String, limit: Option[Limit] = None): Future[Int] = {
-    r.send(ZrevRangeByLex(key, start, stop, limit)).map(integerResultAsInt)
+  def zrevRangeByLexAsync[T](key: String, start: String, stop: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Future[Set[T]] = {
+    r.send(ZrevRangeByLex(key, start, stop, limit)).map(multiBulkDataResultToLinkedSet(conv))
   }
 
-  def zrevRangeByLex(key: String, start: String, stop: String, limit: Option[Limit] = None): Int = await {
+  def zrevRangeByLex[T](key: String, start: String, stop: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Set[T] = await {
     zrevRangeByLexAsync(key, start, stop, limit)
   }
 
@@ -164,8 +164,8 @@ private[redis] trait SortedSetCommands extends ClientCommands {
     r.send(ZrevRangeByScore(key, start, stop, limit, false)).map(multiBulkDataResultToLinkedSet(conv))
   }
 
-  def zrevRangeByScore[T](key: String, start: String, stop: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Int = await {
-    zrevRangeByLexAsync(key, start, stop, limit)
+  def zrevRangeByScore[T](key: String, start: String, stop: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Set[T] = await {
+    zrevRangeByScoreAsync(key, start, stop, limit)
   }
 
   def zrevRangeByScoreWithScoreAsync[T](key: String, start: String, stop: String, limit: Option[Limit] = None)(implicit conv: BinaryConverter[T]): Future[Map[T, Float]] = {

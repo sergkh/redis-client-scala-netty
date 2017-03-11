@@ -87,9 +87,9 @@ private[commands] object ClientCommands {
   }
 
 
-  private[this] def filterEmptyAndMap[T](r: Seq[BulkDataResult], conv: BinaryConverter[T]) = r.filter {
-    case BulkDataResult(Some(_)) => true
-    case BulkDataResult(None) => false
-  }.map { r => conv.read(r.data.get) }
+  private[this] def filterEmptyAndMap[T](r: Seq[BulkDataResult], conv: BinaryConverter[T]) = r.collect {
+    case BulkDataResult(Some(data)) => conv.read(data)
+  }
+
 }
 

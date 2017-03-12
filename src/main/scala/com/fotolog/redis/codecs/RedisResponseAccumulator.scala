@@ -20,7 +20,12 @@ private[redis] class RedisResponseAccumulator(connStateRef: AtomicReference[Conn
   final val BULK_NONE = BulkDataResult(None)
   final val EMPTY_MULTIBULK = MultiBulkDataResult(Nil)
 
+  //Process array here
+  //Array buffer
+  //SimpleChannelInboundHandler
+
   override def channelRead0(ctx: ChannelHandlerContext, msg: AnyRef) {
+    ctx.read()
     msg match {
       case (resType: ResponseType, line: String) =>
         clear()
@@ -30,10 +35,11 @@ private[redis] class RedisResponseAccumulator(connStateRef: AtomicReference[Conn
           case Integer => handleResult(BulkDataResult(Some(line.getBytes)))
           case MultiBulkData => line.toInt match {
             case x if x <= 0 => handleResult(EMPTY_MULTIBULK)
-            case n => numDataChunks = line.toInt // ask for bulk data chunks
+            case n => numDataChunks = line.toInt // ask for bulk data chunks set array length
           }
           case _ => throw new Exception("Unexpected %s -> %s".format(resType, line))
         }
+      //TODO: process single string line
       case data: Array[Byte] => handleDataChunk(Option(data))
       case NullData => handleDataChunk(None)
       case _ => throw new Exception("Unexpected error: " + msg)

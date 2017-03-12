@@ -7,11 +7,13 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import com.fotolog.redis._
 import com.fotolog.redis.codecs.{RedisCommandEncoder, RedisResponseAccumulator, RedisResponseDecoder}
 import io.netty.bootstrap.Bootstrap
+import io.netty.buffer.Unpooled
 import io.netty.channel._
 import io.netty.channel.epoll.{EpollEventLoopGroup, EpollSocketChannel}
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
+import io.netty.handler.codec.DelimiterBasedFrameDecoder
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -77,7 +79,7 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
         override def initChannel(ch: SocketChannel): Unit = {
           val pipeline = ch.pipeline()
 
-          //pipeline.addLast("response_frame_decoder", new DelimiterBasedFrameDecoder(512 * 1024 *1024, false, Unpooled.wrappedBuffer("\r\n".getBytes)))
+          pipeline.addLast("response_frame_decoder", new DelimiterBasedFrameDecoder(512 * 1024 * 1024, false, Unpooled.wrappedBuffer("\r\n".getBytes)))
           pipeline.addLast("response_decoder", new RedisResponseDecoder())
           pipeline.addLast("response_accumulator", new RedisResponseAccumulator(clientState))
 

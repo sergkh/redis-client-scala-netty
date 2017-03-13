@@ -43,4 +43,12 @@ object SortedSetOptions {
     def apply(): ZaddOptions = new ZaddOptions(None, None, None)
   }
 
+  sealed class Agregation(name: String) {
+    def asBin = name.getBytes
+  }
+
+  case object SumAgregation extends Agregation("SUM")
+  case object MinAgregation extends Agregation("MIN")
+  case object MaxAgregation extends Agregation("MAX")
+  
 }

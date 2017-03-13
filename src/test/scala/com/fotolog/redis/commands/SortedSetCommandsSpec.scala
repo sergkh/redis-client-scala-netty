@@ -134,5 +134,12 @@ class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
     client.zadd[String]("zset-zscore", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
     client.zscore[String]("zset-zscore", "a") shouldEqual Some(1F)
   }
+
+  "A zunionstore" should "computes the union of numkeys sorted sets given by the specified keys, and stores the result in destination" in {
+    client.zadd[String]("zset-zunionstore1", (1F, "a"), (2F, "b"), (3F, "c")) shouldEqual 3
+    client.zadd[String]("zset-zunionstore2", (1F, "a"), (2F, "b")) shouldEqual 2
+    client.zunionstore("out", 2, Seq("zset-zunionstore1", "zset-zunionstore2"), Seq(2D, 3D)) shouldEqual 3
+    client.zrangeWithScores[String]("out", 0, -1) shouldEqual Map("a" -> 5F, "c" -> 6F, "b" -> 10F)
+  }
   
 }

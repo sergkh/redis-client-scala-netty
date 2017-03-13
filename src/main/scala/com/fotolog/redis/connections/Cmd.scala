@@ -3,7 +3,7 @@ package com.fotolog.redis.connections
 import java.nio.charset.Charset
 
 import com.fotolog.redis.utils.Options.Limit
-import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
+import com.fotolog.redis.utils.SortedSetOptions.{Agregation, SumAgregation, ZaddOptions}
 
 private[redis] object Cmd {
 
@@ -736,5 +736,14 @@ case class Zrevrank(key: String, member: Array[Byte]) extends Cmd {
 case class Zscore(key: String, member: Array[Byte]) extends Cmd {
   def asBin = {
     Seq(ZSCORE, key.getBytes(charset), member)
+  }
+}
+
+case class Zunionstore(dstZsetName: String, zsetNumber: Int, srcZets: Seq[String], weights: Seq[Double], agregationFunc: Agregation = SumAgregation) extends Cmd {
+  def asBin = {
+    val _weights: Seq[Array[Byte]] = if (weights.isEmpty) Nil else Seq("WEIGHTS".getBytes(charset)) ++ weights.map(_.toString.getBytes(charset))
+
+    Seq(ZUNIONSTORE, dstZsetName.getBytes(charset), zsetNumber.toString.getBytes(charset)) ++ srcZets.map(_.getBytes(charset)) ++
+      _weights ++ Seq("AGGREGATE".getBytes(charset), agregationFunc.asBin)
   }
 }

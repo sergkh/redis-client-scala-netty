@@ -3,7 +3,7 @@ package com.fotolog.redis.commands
 import com.fotolog.redis.BinaryConverter
 import com.fotolog.redis.connections._
 import com.fotolog.redis.utils.Options.Limit
-import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
+import com.fotolog.redis.utils.SortedSetOptions.{Agregation, SumAgregation, ZaddOptions}
 
 import scala.collection.Set
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -190,6 +190,14 @@ private[redis] trait SortedSetCommands extends ClientCommands {
 
   def zscore[T](key: String, member: T)(implicit conv: BinaryConverter[T]): Option[Float] = await {
     zscoreAsync(key, member)(conv)
+  }
+
+  def zunionstoreAsync(dstZsetName: String, zsetNumber: Int, srcZets: Seq[String], weights: Seq[Double] = Nil, agregationFunc: Agregation = SumAgregation): Future[Int] = {
+    r.send(Zunionstore(dstZsetName, zsetNumber, srcZets, weights, agregationFunc)).map(integerResultAsInt)
+  }
+
+  def zunionstore(dstZsetName: String, zsetNumber: Int, srcZets: Seq[String], weights: Seq[Double] = Nil, agregationFunc: Agregation = SumAgregation): Int = await {
+    zunionstoreAsync(dstZsetName, zsetNumber, srcZets, weights, agregationFunc)
   }
 
 }

@@ -18,7 +18,7 @@ private[redis] trait SortedSetCommands extends ClientCommands {
   import com.fotolog.redis.commands.ClientCommands._
 
   def zaddAsync[T](key: String, opts: ZaddOptions, kvs: (Float, T)*)(implicit conv: BinaryConverter[T]): Future[Int] = {
-    r.send(Zadd(key, kvs.map(els => els._1.toString -> conv.write(els._2)), opts)).map(integerResultAsInt)
+    r.send(Zadd(key, kvs.map(els => els._1 -> conv.write(els._2)), opts)).map(integerResultAsInt)
   }
 
   def zadd[T](key: String, opts: ZaddOptions, kvs: (Float, T)*)(implicit conv: BinaryConverter[T]): Int = await {
@@ -26,7 +26,7 @@ private[redis] trait SortedSetCommands extends ClientCommands {
   }
 
   def zaddAsync[T](key: String, kvs: (Float, T)*)(implicit conv: BinaryConverter[T]): Future[Int] =
-    r.send(Zadd(key, kvs.map(els => els._1.toString -> conv.write(els._2)), ZaddOptions())).map(integerResultAsInt)
+    r.send(Zadd(key, kvs.map(els => els._1 -> conv.write(els._2)), ZaddOptions())).map(integerResultAsInt)
 
   def zadd[T](key: String, kvs: (Float, T)*)(implicit conv: BinaryConverter[T]): Int = await {
     zaddAsync(key, kvs: _*)(conv)

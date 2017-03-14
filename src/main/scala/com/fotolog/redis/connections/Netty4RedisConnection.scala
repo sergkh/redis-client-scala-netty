@@ -5,7 +5,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import com.fotolog.redis._
-import com.fotolog.redis.codecs.{RedisCommandEncoder, RedisResponseAccumulator, RedisResponseDecoder}
+import com.fotolog.redis.codecs._
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.Unpooled
 import io.netty.channel._
@@ -81,9 +81,10 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
 
           pipeline.addLast("response_frame_decoder", new DelimiterBasedFrameDecoder(512 * 1024 * 1024, false, Unpooled.wrappedBuffer("\r\n".getBytes)))
           pipeline.addLast("response_decoder", new RedisResponseDecoder())
-          pipeline.addLast("response_accumulator", new RedisResponseAccumulator(clientState))
+          pipeline.addLast("response_array_agregator", new RedisArrayAgregator())
+          pipeline.addLast("response_handler", new RedisResponseHandler(clientState))
 
-          pipeline.addLast("command_encoder", commandEncoder)
+          pipeline.addLast("request_command_encoder", commandEncoder)
         }
       })
   }

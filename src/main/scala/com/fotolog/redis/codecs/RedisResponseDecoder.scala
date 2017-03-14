@@ -7,7 +7,7 @@ import com.fotolog.redis._
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ByteToMessageDecoder
-import io.netty.util.ByteProcessor
+import io.netty.util.{ByteProcessor, CharsetUtil}
 
 /**
   * @author Yaroslav Derman <yaroslav.derman@gmail.com>.
@@ -15,9 +15,10 @@ import io.netty.util.ByteProcessor
   */
 private[redis] class RedisResponseDecoder extends ByteToMessageDecoder with ChannelExceptionHandler {
 
-  val charset: Charset = Charset.forName("UTF-8")
+  val charset: Charset = CharsetUtil.UTF_8
   var responseType: ResponseType = Unknown
 
+  //TODO: split into frame without '/r/n'
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
     responseType match {
       case Unknown if in.isReadable =>
@@ -29,7 +30,7 @@ private[redis] class RedisResponseDecoder extends ByteToMessageDecoder with Chan
         line.toInt match {
           case -1 =>
             responseType = Unknown
-            out.add(NullData)
+            out.add(NullRedisMessage)
           case n =>
             responseType = BinaryData(n)
         }
@@ -42,13 +43,32 @@ private[redis] class RedisResponseDecoder extends ByteToMessageDecoder with Chan
           val bytes = new Array[Byte](len)
           in.readBytes(bytes)
           in.skipBytes(2)
-          out.add(bytes)
+          out.add(RawRedisMessage(bytes))
         }
 
-      case x => readAsciiLine(in).map { line =>
-        responseType = Unknown
-        out.add((x, line))
-      }
+      case MultiBulkData =>
+        readAsciiLine(in).map { line =>
+          responseType = Unknown
+          out.add(ArrayHeaderRedisMessage(line.toInt))
+        }
+
+      case Integer =>
+        readAsciiLine(in).map { line =>
+          responseType = Unknown
+          out.add(IntRedisMessage(line.toInt))
+        }
+
+      case Error =>
+        readAsciiLine(in).map { line =>
+          responseType = Unknown
+          out.add(ErrorRedisMessage(line))
+        }
+
+      case SingleLine =>
+        readAsciiLine(in).map { line =>
+          responseType = Unknown
+          out.add(StringRedisMessage(line))
+        }
     }
   }
 

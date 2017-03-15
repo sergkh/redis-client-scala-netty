@@ -94,7 +94,6 @@ case class SubscribedConnectionState(queue: BlockingQueue[ResultFuture], subscri
           respFuture.cmd match {
             case subscribeCmd: Subscribe =>
               subscribers ++= extractSubscribers(subscribeCmd)
-              println(subscribers)
             case unsubscribeCmd: Unsubscribe =>
               return processUnsubscribe(unsubscribeCmd.channels)
             case other =>

@@ -43,6 +43,7 @@ private[redis] trait ScriptingCommands extends ClientCommands {
 
   def scriptExistsAsync(script: String) = r.send(ScriptExists(script)).map {
     case BulkDataResult(Some(data)) => !"0".equals(new String(data))
+    case MultiBulkDataResult(List(BulkDataResult(Some(data)))) => !"0".equals(new String(data))
     case unknown =>
       throw UnsupportedResponseException("Unsupported response type: " + unknown)
   }

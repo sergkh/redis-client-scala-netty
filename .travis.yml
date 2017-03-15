@@ -8,24 +8,37 @@ env:
   - REDIS_TAG=3.2.0
   - secure: V+QVQZfSYPjdPfBiKsPta63CaIA33Xl6UhTZrWD+KCQ4AXjEKWdIag54ABAAw7gMt6lfVgq4R5J8WiTcAbFVXY62gN4OxzmdUxyOvcgexUAxraQV7QcKNu4TFsMGoSSUv9OM/+CbAyvFWsPXVEAQ/L9GsdmaXjNd6s6ggMr6gLs=
   - secure: hQYfRhuuMhvOUiPPsK2xeFpqgv0pzMhw/9EiK1t+MuqyvSAdE159qzKciNprFmGbi6FDgKSu7E7745ukogSrENA2g9tcJR/YP++V/nuxTosH3CCuBDvmALkmYusY6fpYn1c238eB8Uka0X9tU46riU5LhKPaWcdJ0o2p6LW+rTQ=
-before_install:
-- export REDIS_BIN=$HOME/redis/${REDIS_TAG}/bin
-- |
-  if [ ! -x "$REDIS_BIN/redis-server" ]; then
-    # For proper caching we must build all redis versions
-    wget -c https://github.com/antirez/redis/archive/${REDIS_TAG}.tar.gz -O redis-${REDIS_TAG}.tar.gz
-    tar -xvf redis-${REDIS_TAG}.tar.gz
-    make -C redis-${REDIS_TAG} PREFIX=$HOME/redis/${REDIS_TAG} install
-  fi
-before_script:
-- '$REDIS_BIN/redis-server --daemonize yes --pidfile ./redis-server.pid --unixsocket
-  /tmp/aioredis.sock --port 6379 --save ""
 
-'
-- sleep 3
-- export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
-- echo $REDIS_VERSION
+before_install:
+  - export REDIS_BIN=$HOME/redis/${REDIS_TAG}/bin
+  - |
+    if [ ! -x "$REDIS_BIN/redis-server" ]; then
+      # For proper caching we must build all redis versions
+      wget -c https://github.com/antirez/redis/archive/${REDIS_TAG}.tar.gz -O redis-${REDIS_TAG}.tar.gz
+      tar -xvf redis-${REDIS_TAG}.tar.gz
+      make -C redis-${REDIS_TAG} PREFIX=$HOME/redis/${REDIS_TAG} install
+    fi
+
+before_script:
+  - '$REDIS_BIN/redis-server --daemonize yes --pidfile ./redis-server.pid --unixsocket
+    /tmp/aioredis.sock --port 6379 --save ""
+    '
+  - sleep 3
+  - export REDIS_VERSION="$(redis-cli INFO SERVER | sed -n 2p)"
+  - echo $REDIS_VERSION
+
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt/boot/
+
+before_cache:
+  # Tricks to avoid unnecessary cache updates
+  - find $HOME/.ivy2 -name "ivydata-*.properties" -delete
+  - find $HOME/.sbt -name "*.lock" -delete
+
 script:
-- sbt clean test +package
+  - sbt clean test +package
+
 after_success:
-- test "${TRAVIS_PULL_REQUEST}" = 'false' && test "${TRAVIS_TAG}" != '' && sh "$TRAVIS_BUILD_DIR/.bintray.sh" && sbt +publish bintrayRelease
+  - test "${TRAVIS_PULL_REQUEST}" = 'false' && test "${TRAVIS_TAG}" != '' && sh "$TRAVIS_BUILD_DIR/.bintray.sh" && sbt +publish bintrayRelease

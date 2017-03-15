@@ -120,6 +120,10 @@ class Redlock(clients: Seq[RedisClient]) {
     }
   }
 
+  def shutdown() = {
+    clients.foreach(_.shutdown())
+  }
+
   protected def generateRandomValue = UUID.randomUUID().toString
 }
 

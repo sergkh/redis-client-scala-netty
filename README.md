@@ -1,4 +1,4 @@
-## [Redis](http://redis.io) scala client library [![Build Status](https://travis-ci.org/sergkh/redis-client-scala-netty.svg?branch=master)](https://travis-ci.org/sergkh/redis-client-scala-netty)
+## [Redis](http://redis.io) scala client library [![Build Status](https://travis-ci.org/yarosman/redis-client-scala-netty.svg?branch=master)](https://travis-ci.org/yarosman/redis-client-scala-netty)
 
 ## Features
 
@@ -183,4 +183,4 @@ Redlock is fully supported by in-memory client.
 
 Any contributions or suggestions are welcome. Feel free to start a discussion in [issues](https://github.com/sergkh/redis-client-scala-netty/issues) or create a pull request.
 
-Thanks to [@poison766](https://github.com/poison766) and [@FayazSanaulla](https://github.com/FayazSanaulla) for their contributions.
+Thanks to [@yarosman](https://github.com/yarosman) and [@FayazSanaulla](https://github.com/FayazSanaulla) for their contributions.

@@ -2,8 +2,8 @@ package com.fotolog.redis.connections
 
 import java.net.InetSocketAddress
 import java.nio.charset.Charset
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.concurrent._
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import com.fotolog.redis._
 import org.jboss.netty.bootstrap.ClientBootstrap
@@ -14,8 +14,7 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import org.jboss.netty.handler.codec.frame.FrameDecoder
 import org.jboss.netty.handler.codec.oneone.OneToOneEncoder
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.util.Try
 
 object Netty3RedisConnection {
@@ -254,7 +253,7 @@ private[redis] class RedisResponseDecoder extends FrameDecoder with ChannelExcep
   }
 }
 
-private[redis] class RedisResponseAccumulator(connStateRef: AtomicReference[ConnectionState]) extends SimpleChannelHandler with ChannelExceptionHandler {
+private[redis] class RedisResponseAccumulator(connStateRef: AtomicReference[ConnectionState]) extends SimpleChannelUpstreamHandler with ChannelExceptionHandler {
   import scala.collection.mutable.ArrayBuffer
 
   val bulkDataBuffer = ArrayBuffer[BulkDataResult]()
@@ -263,7 +262,7 @@ private[redis] class RedisResponseAccumulator(connStateRef: AtomicReference[Conn
   final val BULK_NONE = BulkDataResult(None)
   final val EMPTY_MULTIBULK = MultiBulkDataResult(Seq())
 
-  override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
+  override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent): Unit = {
     e.getMessage match {
       case (resType:ResponseType, line:String) =>
         clear()

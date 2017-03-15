@@ -1,5 +1,6 @@
 package com.fotolog.redis.connections
 
+import java.util
 import java.util.concurrent.{BlockingQueue, TimeUnit}
 
 /**
@@ -79,14 +80,15 @@ case class SubscribedConnectionState(queue: BlockingQueue[ResultFuture], subscri
 
   type Subscriber = MultiBulkDataResult => Unit
 
-  var subscribers = extractSubscribers(subscribe)
+  private var subscribers = extractSubscribers(subscribe)
 
   def handle(r: Result): Option[ConnectionState] = {
     r match {
       case err: ErrorResult =>
         fillError(err)
-      case cmdResult: BulkDataResult =>
-        val respFuture = fillResult(r)
+
+      case MultiBulkDataResult(Seq(mode, channel, bin)) if !util.Arrays.equals(mode.data.get, "message".getBytes) =>
+        val respFuture = fillResult(MultiBulkDataResult(Seq(mode, channel, bin)))
 
         if (respFuture.complete) {
           respFuture.cmd match {
@@ -99,12 +101,14 @@ case class SubscribedConnectionState(queue: BlockingQueue[ResultFuture], subscri
           }
         }
 
-      case message: MultiBulkDataResult =>
-        val channel = message.results(1).data.map(new String(_)).get
+      case e: MultiBulkDataResult =>
+
+        val channel = e.results(1).data.map(new String(_)).get
 
         subscribers.foreach { case (pattern, handler) =>
-          if (channel == pattern) handler(message)
+          if (channel == pattern) handler(e)
         }
+
       case other =>
         new RuntimeException("Unsupported response from server in subscribed mode: " + other)
     }

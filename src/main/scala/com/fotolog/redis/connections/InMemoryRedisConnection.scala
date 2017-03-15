@@ -79,7 +79,6 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
     case hset: Hset =>
       optVal(hset.key) match {
         case Some(data) =>
-          println(data)
           map.put(hset.key, Data.hash(data.asMap + (hset.field -> hset.value)))
           0
         case None =>

@@ -4,7 +4,6 @@ import com.fotolog.redis._
 import com.fotolog.redis.connections._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 /**
  * http://redis.io/commands#scripting
@@ -42,8 +41,9 @@ private[redis] trait ScriptingCommands extends ClientCommands {
 
   def scriptFlush() = await { scriptFlushAsync() }
 
-  def scriptExistsAsync(script: String): Future[Boolean] = r.send(ScriptExists(script)).map {
-    case MultiBulkDataResult(BulkDataResult(Some(data)) :: Nil) => !"0".equals(new String(data))
+  def scriptExistsAsync(script: String) = r.send(ScriptExists(script)).map {
+    case BulkDataResult(Some(data)) => !"0".equals(new String(data))
+    case MultiBulkDataResult(List(BulkDataResult(Some(data)))) => !"0".equals(new String(data))
     case unknown =>
       throw UnsupportedResponseException("Unsupported response type: " + unknown)
   }

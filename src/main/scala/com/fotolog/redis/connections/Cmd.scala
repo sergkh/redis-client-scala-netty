@@ -512,7 +512,9 @@ case class Subscribe(channels: Seq[String], handler: MultiBulkDataResult => Unit
 
 case class Unsubscribe(channels: Seq[String]) extends Cmd {
   def asBin =
-    (if(channels.exists(s => s.contains("*") || s.contains("?"))) PUNSUBSCRIBE else UNSUBSCRIBE) :: channels.toList.map(_.getBytes(charset))
+    (if(hasPattern) PUNSUBSCRIBE else UNSUBSCRIBE) :: channels.toList.map(_.getBytes(charset))
+
+  def hasPattern = channels.exists(s => s.contains("*") || s.contains("?"))
 }
 
 case class UnsubscribeAll() extends Cmd {

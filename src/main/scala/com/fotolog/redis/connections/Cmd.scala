@@ -28,7 +28,7 @@ private[redis] object Cmd {
   val SREM = "SREM".getBytes
   val SUNION = "SUNION".getBytes
   val SUNIONSTORE = "SUNIONSTORE".getBytes
-  val SSCAN = "SSCAN".getBytes
+  val SSCAN = "SSCAN".getBytes //TODO
 
   // hash
   val HDEL = "HDEL".getBytes
@@ -44,33 +44,34 @@ private[redis] object Cmd {
   val HSET = "HSET".getBytes
   val HSETNX = "HSETNX".getBytes
   val HVALS = "HVALS".getBytes
-  val HSCAN = "HSCAN".getBytes
+  val HSCAN = "HSCAN".getBytes //TODO
   val HSTRLEN = "HSTRLEN".getBytes
 
   // string
   val APPEND = "APPEND".getBytes
-  val BITCOUNT = "BITCOUNT".getBytes
-  val BITOP = "BITOP".getBytes
-  val BITPOS = "BITPOS".getBytes
+  val BITCOUNT = "BITCOUNT".getBytes // TODO
+  val BITFIELD = "BITFIELD".getBytes // TODO
+  val BITOP = "BITOP".getBytes // TODO
+  val BITPOS = "BITPOS".getBytes // TODO
   val DECR = "DECR".getBytes
   val DECRBY = "DECRBY".getBytes
   val GET = "GET".getBytes
-  val GETBIT = "GETBIT".getBytes
+  val GETBIT = "GETBIT".getBytes // TODO
   val GETRANGE = "GETRANGE".getBytes
   val GETSET = "GETSET".getBytes
   val INCR = "INCR".getBytes
   val INCRBY = "INCRBY".getBytes
-  val INCRBYFLOAT = "INCRBYFLOAT".getBytes
+  val INCRBYFLOAT = "INCRBYFLOAT".getBytes //TODO
   val MGET = "MGET".getBytes
   val MSET = "MSET".getBytes
   val MSETNX = "MSETNX".getBytes
-  val PSETEX = "PSETEX".getBytes
+  val PSETEX = "PSETEX".getBytes //TODO
   val SET = "SET".getBytes
-  val SETBIT = "SETBIT".getBytes
-  val SETEX = "SETEX".getBytes
-  val SETNX = "SETNX".getBytes
-  val SETRANGE = "SETRANGE".getBytes
-  val STRLEN = "STRLEN".getBytes
+  val SETBIT = "SETBIT".getBytes //TODO
+  val SETEX = "SETEX".getBytes //TODO
+  val SETNX = "SETNX".getBytes //TODO
+  val SETRANGE = "SETRANGE".getBytes //TODO
+  val STRLEN = "STRLEN".getBytes //TODO
 
   // transactions
   val DISCARD = "DISCARD".getBytes
@@ -81,38 +82,40 @@ private[redis] object Cmd {
 
   // generic
   val DEL = "DEL".getBytes
-  val DUMP = "DUMP".getBytes // not used
+  val DUMP = "DUMP".getBytes //TODO not used
   val EXISTS = "EXISTS".getBytes
   val EXPIRE = "EXPIRE".getBytes
-  val EXPIREAT = "EXPIREAT".getBytes // not used
+  val EXPIREAT = "EXPIREAT".getBytes //not used
   val KEYS = "KEYS".getBytes
-  val MIGRATE = "MIGRATE".getBytes // not used
-  val MOVE = "MOVE".getBytes // not used
+  val MIGRATE = "MIGRATE".getBytes //TODO
+  val MOVE = "MOVE".getBytes //TODO
   val OBJECT = "OBJECT".getBytes // not used
   val PERSIST = "PERSIST".getBytes
-  val PEXPIRE = "PEXPIRE".getBytes // not used
-  val PEXPIREAT = "PEXPIREAT".getBytes // not used
-  val PTTL = "PTTL".getBytes // not used
-  val RANDOMKEY = "RANDOMKEY".getBytes // not used
+  val PEXPIRE = "PEXPIRE".getBytes //TODO
+  val PEXPIREAT = "PEXPIREAT".getBytes //not used
+  val PTTL = "PTTL".getBytes //TODO
+  val RANDOMKEY = "RANDOMKEY".getBytes //not used
   val RENAME = "RENAME".getBytes
   val RENAMENX = "RENAMENX".getBytes
-  val RESTORE = "RESTORE".getBytes // not used
+  val RESTORE = "RESTORE".getBytes //not used
   val SCAN = "SCAN".getBytes // TODO:
   val SORT = "SORT".getBytes
+  val TOUCH = "TOUCH".getBytes // TODO since 3.2.1
   val TTL = "TTL".getBytes
   val TYPE = "TYPE".getBytes
-  val AUTH = "AUTH".getBytes
+  val UNLINK = "UNLINK".getBytes // TODO since 4.0.0
+  val WAIT = "WAIT".getBytes // TODO
 
   // list
   val BLPOP = "BLPOP".getBytes
   val BRPOP = "BRPOP".getBytes
   val BRPOPLPUSH = "BRPOPLPUSH".getBytes
   val LINDEX = "LINDEX".getBytes
-  val LINSERT = "LINSERT".getBytes
+  val LINSERT = "LINSERT".getBytes //TODO
   val LLEN = "LLEN".getBytes
   val LPOP = "LPOP".getBytes
   val LPUSH = "LPUSH".getBytes
-  val LPUSHX = "LPUSHX".getBytes
+  val LPUSHX = "LPUSHX".getBytes // TODO
   val LRANGE = "LRANGE".getBytes
   val LREM = "LREM".getBytes
   val LSET = "LSET".getBytes
@@ -183,6 +186,8 @@ private[redis] object Cmd {
   val PING = "PING".getBytes
   val QUIT = "QUIT".getBytes
   val SELECT = "SELECT".getBytes
+  val AUTH = "AUTH".getBytes
+  val SWAPDB = "SWAPDB".getBytes //TODO: since redis 4.0
 
   // pubsub
   val PSUBSCRIBE = "PSUBSCRIBE".getBytes
@@ -196,6 +201,7 @@ private[redis] object Cmd {
   // scripting
   val EVAL = "EVAL".getBytes
   val EVALSHA = "EVALSHA".getBytes
+  val SCRIPT_DEBUG = Seq("SCRIPT".getBytes, "DEBUG".getBytes) // TODO since 3.2.0
   val SCRIPT_EXISTS = Seq("SCRIPT".getBytes, "EXISTS".getBytes)
   val SCRIPT_FLUSH = Seq("SCRIPT".getBytes, "FLUSH".getBytes)
   val SCRIPT_KILL = Seq("SCRIPT".getBytes, "KILL".getBytes)
@@ -206,7 +212,7 @@ private[redis] object Cmd {
   val PFCOUNT = "PFCOUNT".getBytes
   val PFMERGE = "PFMERGE".getBytes
 
-  // Geo
+  // Geo TODO
   val GEOADD = "GEOADD".getBytes
   val GEODIST = "GEODIST".getBytes
   val GEOHASH = "GEOHASH".getBytes
@@ -571,3 +577,4 @@ case class GeoPos(key: String, members: Seq[String]) extends Cmd {
 // TODO: case class GeoRadius extends Cmd { def asBin = GAORADIUS :: Nil }
 
 // TODO: case class GeoRadiusByMember extends Cmd { def asBin = GEORADIUSBYMEMBER :: Nil }
+

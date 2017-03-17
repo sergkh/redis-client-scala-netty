@@ -41,5 +41,4 @@ private[redis] trait GeoCommands extends ClientCommands {
 
   def geoPos(key: String, members: String*): Seq[String] = await { geoPosAsync(key, members:_*) }
 
-
 }

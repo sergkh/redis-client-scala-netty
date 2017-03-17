@@ -2,6 +2,9 @@ package com.fotolog.redis.connections
 
 import java.nio.charset.Charset
 
+import com.fotolog.redis.utils.Options.Limit
+import com.fotolog.redis.utils.SortedSetOptions.{Agregation, SumAgregation, ZaddOptions}
+
 private[redis] object Cmd {
 
   val charset = Charset.forName("UTF-8")
@@ -12,6 +15,8 @@ private[redis] object Cmd {
   val NX = "NX".getBytes
   val XX = "XX".getBytes
   val EX = "EX".getBytes
+
+  val WITHSCORES = "WITHSCORES".getBytes
 
   // set
   val SADD = "SADD".getBytes
@@ -550,14 +555,9 @@ case class Select(db: Int) extends Cmd { def asBin = Seq(SELECT, db.toString.get
 
 // geo
 
-case class GeoAdd2(key: String, values: Seq[(Array[Byte],Array[Byte])]) extends Cmd with ArrayFlatten {
+case class GeoAdd(key: String, values: Seq[(Array[Byte],Array[Byte],Array[Byte])]) extends Cmd with ArrayFlatten {
   def asBin = Seq(GEOADD, values.flatten.toArray)
 }
-
-case class GeoAdd3(key: String, values: Seq[(Array[Byte],Array[Byte],Array[Byte])]) extends Cmd with ArrayFlatten {
-  def asBin = Seq(GEOADD, values.flatten.toArray)
-}
-
 
 case class GeoDist(key: String, member1: String, member2: String, unit: String) extends Cmd {
   def asBin = if ("m".equals(unit)) {
@@ -578,3 +578,121 @@ case class GeoPos(key: String, members: Seq[String]) extends Cmd {
 
 // TODO: case class GeoRadiusByMember extends Cmd { def asBin = GEORADIUSBYMEMBER :: Nil }
 
+//sorted set
+case class Zadd(key: String, values: Seq[(String, Array[Byte])], opts: ZaddOptions = ZaddOptions()) extends Cmd {
+  def asBin = Seq(ZADD, key.getBytes(charset)) ++ opts.asBin ++ values.flatMap(kv => List(kv._1.getBytes(charset), kv._2))
+}
+
+case class Zcard(key: String) extends Cmd {
+  def asBin = Seq(ZCARD, key.getBytes(charset))
+}
+
+case class Zcount(key: String, min: Float, max: Float) extends Cmd {
+  def asBin = Seq(ZCOUNT, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset))
+}
+
+case class Zincrby(key: String, increment: Float, member: Array[Byte]) extends Cmd {
+  def asBin = Seq(ZINCRBY, key.getBytes(charset), increment.toString.getBytes(charset), member)
+}
+
+case class ZINTERSTORE(key: String) extends Cmd {
+  def asBin = ???
+}
+
+case class Zlexcount(key: String, min: Array[Byte], max: Array[Byte]) extends Cmd {
+  def asBin = Seq(ZLEXCOUNT, key.getBytes(charset), min, max)
+}
+
+case class Zrange(key: String, start: Int, stop: Int, withScores: Boolean) extends Cmd {
+  def asBin = {
+    val _withScores = if (withScores) Seq(WITHSCORES) else Nil
+    Seq(ZRANGE, key.getBytes(charset), start.toString.getBytes(charset), stop.toString.getBytes(charset)) ++ _withScores
+  }
+}
+
+case class ZrangeByLex(key: String, min: String, max: String, limit: Option[Limit]) extends Cmd {
+  def asBin = {
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    Seq(ZRANGEBYLEX, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ withlimits
+  }
+}
+
+case class ZrangeByScore(key: String, min: String, max: String, withScores: Boolean, limit: Option[Limit]) extends Cmd {
+  def asBin = {
+    val _withScores = if (withScores) Seq(WITHSCORES) else Nil
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    Seq(ZRANGEBYSCORE, key.getBytes(charset), min.getBytes(charset), max.getBytes(charset)) ++ _withScores ++ withlimits
+  }
+}
+
+case class Zrank(key: String, member: Array[Byte]) extends Cmd {
+  def asBin = {
+    Seq(ZRANK, key.getBytes(charset), member)
+  }
+}
+
+case class Zrem(key: String, members: Seq[Array[Byte]]) extends Cmd {
+  def asBin = {
+    Seq(ZREM, key.getBytes(charset)) ++ members
+  }
+}
+
+case class ZremRangeByLex(key: String, min: String, max: String) extends Cmd {
+  def asBin = {
+    Seq(ZREMRANGEBYLEX, key.getBytes(charset), min.getBytes(charset), max.getBytes(charset))
+  }
+}
+
+case class ZremRangeByRank(key: String, startRange: Int, stopRange: Int) extends Cmd {
+  def asBin = {
+    Seq(ZREMRANGEBYRANK, key.getBytes(charset), startRange.toString.getBytes(charset), stopRange.toString.getBytes(charset))
+  }
+}
+
+case class ZremRangeByScore(key: String, minScore: String, maxScore: String) extends Cmd {
+  def asBin = {
+    Seq(ZREMRANGEBYSCORE, key.getBytes(charset), minScore.toString.getBytes(charset), maxScore.toString.getBytes(charset))
+  }
+}
+
+case class ZrevRange(key: String, start: Int, stop: Int) extends Cmd {
+  def asBin = {
+    Seq(ZREVRANGE, key.getBytes(charset), start.toString.getBytes(charset), stop.toString.getBytes(charset))
+  }
+}
+
+case class ZrevRangeByLex(key: String, min: String, max: String, limit: Option[Limit]) extends Cmd {
+  def asBin = {
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    Seq(ZREVRANGEBYLEX, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ withlimits
+  }
+}
+
+case class ZrevRangeByScore(key: String, min: String, max: String, limit: Option[Limit], withScores: Boolean) extends Cmd {
+  def asBin = {
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    val _withScores = if (withScores) Seq(WITHSCORES) else Nil
+    Seq(ZREVRANGEBYSCORE, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ _withScores ++ withlimits
+  }
+}
+
+case class Zrevrank(key: String, member: Array[Byte]) extends Cmd {
+  def asBin = {
+    Seq(ZREVRANK, key.getBytes(charset), member)
+  }
+}
+
+case class Zscore(key: String, member: Array[Byte]) extends Cmd {
+  def asBin = {
+    Seq(ZSCORE, key.getBytes(charset), member)
+  }
+}
+
+case class Zunionstore(dstZsetName: String, zsetNumber: Int, srcZets: Seq[String], weights: Seq[Double], agregationFunc: Agregation = SumAgregation) extends Cmd {
+  def asBin = {
+    val _weights: Seq[Array[Byte]] = if (weights.isEmpty) Nil else Seq("WEIGHTS".getBytes(charset)) ++ weights.map(_.toString.getBytes(charset))
+
+    Seq(ZUNIONSTORE, dstZsetName.getBytes(charset), zsetNumber.toString.getBytes(charset)) ++ srcZets.map(_.getBytes(charset)) ++
+      _weights ++ Seq("AGGREGATE".getBytes(charset), agregationFunc.asBin)
+  }
+}

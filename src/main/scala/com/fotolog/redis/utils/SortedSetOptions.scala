@@ -1,6 +1,6 @@
 package com.fotolog.redis.utils
 
-import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{IncrementOptions, ModifyOpts, ResultOptions}
+import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.ModifyOpts
 
 /**
   * @author Yaroslav Derman <yaroslav.derman@gmail.com>.
@@ -10,12 +10,14 @@ object SortedSetOptions {
 
   case class ZaddOptions(
                           modifyOpts: Option[ModifyOpts] = None,
-                          resultOpts: Option[ResultOptions] = None,
-                          incOpt: Option[IncrementOptions] = None
+                          withResultOpts: Boolean = false,
+                          withIncOpt: Boolean = false
                         ) {
 
     def asBin: Seq[Array[Byte]] = {
-      Seq(modifyOpts.map(_.asBin), resultOpts.map(_.asBin), incOpt.map(_.asBin)).collect {
+      val resultOptionsBytes =  if (withResultOpts) Some("CH".getBytes) else None
+      val incOptionsBytes = if (withIncOpt) Some("INCR".getBytes) else None
+      Seq(modifyOpts.map(_.asBin), resultOptionsBytes, incOptionsBytes).collect {
         case Some(bytes) => bytes
       }
     }
@@ -30,17 +32,6 @@ object SortedSetOptions {
 
     object XX extends ModifyOpts("XX")
 
-    object INCR extends IncrementOptions
-
-    class ResultOptions {
-      def asBin = "CH".getBytes
-    }
-
-    class IncrementOptions {
-      def asBin = "INCR".getBytes
-    }
-
-    def apply(): ZaddOptions = new ZaddOptions(None, None, None)
   }
 
   sealed class Agregation(name: String) {

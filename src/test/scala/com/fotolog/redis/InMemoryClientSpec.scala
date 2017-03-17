@@ -1,5 +1,7 @@
 package com.fotolog.redis
 
+import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
+import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{NX, XX}
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -102,6 +104,21 @@ class InMemoryClientSpec extends FlatSpec with Matchers with TestClient {
     assert(4 === client.hlen("hash_zoo-key"), "Length of map elements should be 2")
     client.hkeys("hash_zoo-key") shouldBe Seq("wry", "vaz", "baz", "foo")
     client.hkeys("hash_nonexistent-key") shouldBe Nil
+  }
+
+  it should "support sorted set commands" in {
+    client.zadd("key-zadd", (1.0F, "one")) shouldEqual 1
+    client.zadd("key-zadd", (1.0F, "one"), (2.5F, "two")) shouldEqual 1
+    client.zadd("key-zadd", (1.0F, "one")) shouldEqual 0
+    client.zadd("key-zadd", ZaddOptions(Some(XX)), (1.0F, "new-member")) shouldEqual 0
+    client.zadd("key-zadd", ZaddOptions(Some(NX)), (2.0F, "one")) shouldEqual 0
+
+    client.zadd("key-zadd", ZaddOptions(Some(XX), true), (5.0F, "one"), (1.0F, "new-member")) shouldEqual 1
+    client.zadd("key-zadd", ZaddOptions(Some(NX), true), (3.0F, "one")) shouldEqual 0
+    
+    the [RedisException] thrownBy {
+      client.zadd("key-zadd", ZaddOptions(None, false, true), (2.0F, "two"), (3.0F, "three"))
+    } should have message "ERR INCR option supports a single increment-element pair"
   }
 
   /*

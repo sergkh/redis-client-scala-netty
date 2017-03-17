@@ -2,7 +2,7 @@ package com.fotolog.redis.commands
 
 import com.fotolog.redis.utils.Options.Limit
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions
-import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{INCR, NX, XX}
+import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{NX, XX}
 import com.fotolog.redis.{RedisException, TestClient}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -10,14 +10,22 @@ import org.scalatest.{FlatSpec, Matchers}
 class SortedSetCommandsSpec extends FlatSpec with Matchers with TestClient {
 
   "A zadd method" should "correctly add a value to a set" in {
-    client.zadd("key-sadd", (1.0F, "one")) shouldEqual 1
-    client.zadd("key-sadd", (1.0F, "one"), (2.5F, "two")) shouldEqual 1
-    client.zadd("key-sadd", (1.0F, "one")) shouldEqual 0
-    client.zadd("key-sadd", ZaddOptions(Some(XX)), (1.0F, "new-member")) shouldEqual 0
-    client.zadd("key-sadd", ZaddOptions(Some(NX)), (2.0F, "one")) shouldEqual 0 //TODO: retrieve and check score
+    client.zadd("key-zadd", (1.0F, "one")) shouldEqual 1
+    client.zadd("key-zadd", (1.0F, "one"), (2.5F, "two")) shouldEqual 1
+    client.zadd("key-zadd", (1.0F, "one")) shouldEqual 0
+    client.zadd("key-zadd", ZaddOptions(Some(XX)), (1.0F, "new-member")) shouldEqual 0
+    client.zadd("key-zadd", ZaddOptions(Some(NX)), (2.0F, "one")) shouldEqual 0
+
+    client.zadd("key-zadd", ZaddOptions(None, true), (2.0F, "one"), (4.0F, "two")) shouldEqual 2
+
+    client.zadd("key-zadd", ZaddOptions(Some(XX), true), (5.0F, "one"), (1.0F, "new-member")) shouldEqual 1
+    client.zadd("key-zadd", ZaddOptions(Some(NX), true), (5.0F, "one"), (1.0F, "new-member")) shouldEqual 1
+
+    client.zadd("key-zadd", ZaddOptions(None, true), (5.0F, "one"), (1.0F, "new-member")) shouldEqual 0
+    client.zadd("key-zadd", ZaddOptions(None, true), (1.0F, "new-member2")) shouldEqual 1
 
     the [RedisException] thrownBy {
-      client.zadd("key-sadd", ZaddOptions(None, None, Some(INCR)), (2.0F, "two"), (3.0F, "three"))
+      client.zadd("key-zadd", ZaddOptions(None, false, true), (2.0F, "two"), (3.0F, "three"))
     } should have message "ERR INCR option supports a single increment-element pair"
   }
 

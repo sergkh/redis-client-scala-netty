@@ -579,8 +579,8 @@ case class GeoPos(key: String, members: Seq[String]) extends Cmd {
 // TODO: case class GeoRadiusByMember extends Cmd { def asBin = GEORADIUSBYMEMBER :: Nil }
 
 //sorted set
-case class Zadd(key: String, values: Seq[(String, Array[Byte])], opts: ZaddOptions = ZaddOptions()) extends Cmd {
-  def asBin = Seq(ZADD, key.getBytes(charset)) ++ opts.asBin ++ values.flatMap(kv => List(kv._1.getBytes(charset), kv._2))
+case class Zadd(key: String, values: Seq[(Float, Array[Byte])], opts: ZaddOptions = ZaddOptions()) extends Cmd {
+  def asBin = Seq(ZADD, key.getBytes(charset)) ++ opts.asBin ++ values.flatMap(kv => List(kv._1.toString.getBytes, kv._2))
 }
 
 case class Zcard(key: String) extends Cmd {

@@ -43,6 +43,11 @@ trait DefaultConverters {
     def write(i: Long) = i.toString.getBytes(charset)
   }
 
+  implicit object FloatConverter extends BinaryConverter[Float] {
+    def read(b: Array[Byte]) = new String(b).toFloat
+    def write(i: Float) = i.toString.getBytes(charset)
+  }
+
   implicit object DoubleConverter extends BinaryConverter[Double] {
     def read(b: Array[Byte]) = new String(b).toDouble
     def write(i: Double) = i.toString.getBytes(charset)

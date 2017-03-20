@@ -2,6 +2,9 @@ package com.fotolog.redis.connections
 
 import java.nio.charset.Charset
 
+import com.fotolog.redis.utils.Options.Limit
+import com.fotolog.redis.utils.SortedSetOptions.{Agregation, SumAgregation, ZaddOptions}
+
 private[redis] object Cmd {
 
   val charset = Charset.forName("UTF-8")
@@ -12,6 +15,7 @@ private[redis] object Cmd {
   val NX = "NX".getBytes
   val XX = "XX".getBytes
   val EX = "EX".getBytes
+  val WITHSCORES = "WITHSCORES".getBytes
 
   // set
   val SADD = "SADD".getBytes
@@ -81,23 +85,34 @@ private[redis] object Cmd {
 
   // generic
   val DEL = "DEL".getBytes
-  val DUMP = "DUMP".getBytes // not used
+  val DUMP = "DUMP".getBytes
+  // not used
   val EXISTS = "EXISTS".getBytes
   val EXPIRE = "EXPIRE".getBytes
-  val EXPIREAT = "EXPIREAT".getBytes // not used
+  val EXPIREAT = "EXPIREAT".getBytes
+  // not used
   val KEYS = "KEYS".getBytes
-  val MIGRATE = "MIGRATE".getBytes // not used
-  val MOVE = "MOVE".getBytes // not used
-  val OBJECT = "OBJECT".getBytes // not used
+  val MIGRATE = "MIGRATE".getBytes
+  // not used
+  val MOVE = "MOVE".getBytes
+  // not used
+  val OBJECT = "OBJECT".getBytes
+  // not used
   val PERSIST = "PERSIST".getBytes
-  val PEXPIRE = "PEXPIRE".getBytes // not used
-  val PEXPIREAT = "PEXPIREAT".getBytes // not used
-  val PTTL = "PTTL".getBytes // not used
-  val RANDOMKEY = "RANDOMKEY".getBytes // not used
+  val PEXPIRE = "PEXPIRE".getBytes
+  // not used
+  val PEXPIREAT = "PEXPIREAT".getBytes
+  // not used
+  val PTTL = "PTTL".getBytes
+  // not used
+  val RANDOMKEY = "RANDOMKEY".getBytes
+  // not used
   val RENAME = "RENAME".getBytes
   val RENAMENX = "RENAMENX".getBytes
-  val RESTORE = "RESTORE".getBytes // not used
-  val SCAN = "SCAN".getBytes // TODO:
+  val RESTORE = "RESTORE".getBytes
+  // not used
+  val SCAN = "SCAN".getBytes
+  // TODO:
   val SORT = "SORT".getBytes
   val TTL = "TTL".getBytes
   val TYPE = "TYPE".getBytes
@@ -161,6 +176,7 @@ private[redis] object Cmd {
   val ZCOUNT = "ZCOUNT".getBytes
   val ZINCRBY = "ZINCRBY".getBytes
   val ZINTERSTORE = "ZINTERSTORE".getBytes
+  // TODO:
   val ZLEXCOUNT = "ZLEXCOUNT".getBytes
   val ZRANGE = "ZRANGE".getBytes
   val ZRANGEBYLEX = "ZRANGEBYLEX".getBytes
@@ -216,14 +232,9 @@ private[redis] object Cmd {
 }
 
 import com.fotolog.redis.connections.Cmd._
+
 sealed abstract class Cmd {
   def asBin: Seq[Array[Byte]]
-}
-
-sealed trait ArrayFlatten {
-  implicit val flattener2 = (t: (Array[Byte], Array[Byte])) ⇒ t._1.toList ::: t._2.toList
-
-  implicit val flattener3 = (t: (Array[Byte], Array[Byte], Array[Byte])) ⇒ t._1.toList ::: t._2.toList ::: t._3.toList
 }
 
 case class Exists(key: String) extends Cmd {
@@ -235,13 +246,13 @@ case class Type(key: String) extends Cmd {
 }
 
 case class Del(keys: Seq[String]) extends Cmd {
-  def asBin = if(keys.length > 1)
+  def asBin = if (keys.length > 1)
     DEL :: keys.toList.map(_.getBytes(charset))
   else Seq(DEL, keys.head.getBytes(charset))
 }
 
 case class Rename(key: String, newKey: String, nx: Boolean) extends Cmd {
-  def asBin = Seq(if(nx) RENAMENX else RENAME, key.getBytes(charset), newKey.getBytes(charset))
+  def asBin = Seq(if (nx) RENAMENX else RENAME, key.getBytes(charset), newKey.getBytes(charset))
 }
 
 case class Get(key: String) extends Cmd {
@@ -260,11 +271,11 @@ case class SetCmd(key: String,
 
   def asBin = {
     var seq = Seq(SET, key.getBytes(charset), v)
-    if(expTime != -1) seq = seq ++ Seq(EX, expTime.toString.getBytes)
+    if (expTime != -1) seq = seq ++ Seq(EX, expTime.toString.getBytes)
 
-    if(nx) {
+    if (nx) {
       seq = seq :+ NX
-    } else if(xx) {
+    } else if (xx) {
       seq = seq :+ XX
     }
 
@@ -285,13 +296,13 @@ case class GetSet(key: String, v: Array[Byte]) extends Cmd {
 }
 
 case class Incr(key: String, delta: Int = 1) extends Cmd {
-  def asBin = if(delta == 1) Seq(INCR, key.getBytes(charset))
-    else Seq(INCRBY, key.getBytes(charset), delta.toString.getBytes)
+  def asBin = if (delta == 1) Seq(INCR, key.getBytes(charset))
+  else Seq(INCRBY, key.getBytes(charset), delta.toString.getBytes)
 }
 
 case class Decr(key: String, delta: Int = 1) extends Cmd {
-  def asBin = if(delta == 1) Seq(DECR, key.getBytes(charset))
-    else Seq(DECRBY, key.getBytes(charset), delta.toString.getBytes)
+  def asBin = if (delta == 1) Seq(DECR, key.getBytes(charset))
+  else Seq(DECRBY, key.getBytes(charset), delta.toString.getBytes)
 }
 
 case class Append(key: String, v: Array[Byte]) extends Cmd {
@@ -354,6 +365,7 @@ case class Lrem(key: String, count: Int, value: Array[Byte]) extends Cmd {
 case class Lpop(key: String) extends Cmd {
   def asBin = Seq(LPOP, key.getBytes(charset))
 }
+
 case class Rpop(key: String) extends Cmd {
   def asBin = Seq(RPOP, key.getBytes(charset))
 }
@@ -367,15 +379,17 @@ case class Hset(key: String, field: String, value: Array[Byte]) extends Cmd {
   def asBin = Seq(HSET, key.getBytes(charset), field.getBytes(charset), value)
 }
 
-case class Hget(key: String, field: String) extends Cmd  {
+case class Hget(key: String, field: String) extends Cmd {
   def asBin = Seq(HGET, key.getBytes(charset), field.getBytes(charset))
 }
 
 case class Hmget(key: String, fields: Seq[String]) extends Cmd {
-  def asBin = HMGET :: key.getBytes(charset) :: fields.toList.map{_.getBytes(charset)}
+  def asBin = HMGET :: key.getBytes(charset) :: fields.toList.map {
+    _.getBytes(charset)
+  }
 }
 
-case class Hmset(key:String, kvs: Seq[(String, Array[Byte])]) extends Cmd {
+case class Hmset(key: String, kvs: Seq[(String, Array[Byte])]) extends Cmd {
   def asBin = HMSET :: key.getBytes :: kvs.toList.flatMap { kv => List(kv._1.getBytes(charset), kv._2) }
 }
 
@@ -439,16 +453,21 @@ case class Smove(srcKey: String, destKey: String, value: Array[Byte]) extends Cm
 case class Scard(key: String) extends Cmd {
   def asBin = Seq(SCARD, key.getBytes(charset))
 }
-case class Sismember(key: String, v: Array[Byte]) extends Cmd  {
+
+case class Sismember(key: String, v: Array[Byte]) extends Cmd {
   def asBin = Seq(SISMEMBER, key.getBytes(charset), v)
 }
 
 case class Sinter(keys: Seq[String]) extends Cmd {
-  def asBin = SINTER :: keys.toList.map{_.getBytes(charset)}
+  def asBin = SINTER :: keys.toList.map {
+    _.getBytes(charset)
+  }
 }
 
 case class Sinterstore(destKey: String, keys: Seq[String]) extends Cmd {
-  def asBin = SINTERSTORE :: destKey.getBytes(charset) :: keys.toList.map{_.getBytes(charset)}
+  def asBin = SINTERSTORE :: destKey.getBytes(charset) :: keys.toList.map {
+    _.getBytes(charset)
+  }
 }
 
 case class Sunion(keys: Seq[String]) extends Cmd {
@@ -456,15 +475,21 @@ case class Sunion(keys: Seq[String]) extends Cmd {
 }
 
 case class Sunionstore(destKey: String, keys: Seq[String]) extends Cmd {
-  def asBin = SUNIONSTORE :: destKey.getBytes(charset) :: keys.toList.map{_.getBytes(charset)}
+  def asBin = SUNIONSTORE :: destKey.getBytes(charset) :: keys.toList.map {
+    _.getBytes(charset)
+  }
 }
 
 case class Sdiff(keys: Seq[String]) extends Cmd {
-  def asBin = SDIFF :: keys.toList.map{_.getBytes(charset)}
+  def asBin = SDIFF :: keys.toList.map {
+    _.getBytes(charset)
+  }
 }
 
 case class Sdiffstore(destKey: String, keys: Seq[String]) extends Cmd {
-  def asBin = SDIFFSTORE :: destKey.getBytes(charset) :: keys.toList.map{_.getBytes(charset)}
+  def asBin = SDIFFSTORE :: destKey.getBytes(charset) :: keys.toList.map {
+    _.getBytes(charset)
+  }
 }
 
 case class Smembers(key: String) extends Cmd {
@@ -484,18 +509,43 @@ case class EvalSha(digest: String, kv: Seq[(String, Array[Byte])]) extends Cmd {
   def asBin = EVALSHA :: digest.getBytes(charset) :: kv.length.toString.getBytes :: kv.toList.flatMap { kv => List(kv._1.getBytes(charset), kv._2) }
 }
 
-case class ScriptLoad(script: String) extends Cmd { def asBin = SCRIPT_LOAD :+ script.getBytes(charset) }
-case class ScriptKill() extends Cmd { def asBin = SCRIPT_KILL }
-case class ScriptFlush() extends Cmd { def asBin = SCRIPT_FLUSH }
-case class ScriptExists(script: String) extends Cmd { def asBin = SCRIPT_EXISTS :+ script.getBytes(charset) }
+case class ScriptLoad(script: String) extends Cmd {
+  def asBin = SCRIPT_LOAD :+ script.getBytes(charset)
+}
+
+case class ScriptKill() extends Cmd {
+  def asBin = SCRIPT_KILL
+}
+
+case class ScriptFlush() extends Cmd {
+  def asBin = SCRIPT_FLUSH
+}
+
+case class ScriptExists(script: String) extends Cmd {
+  def asBin = SCRIPT_EXISTS :+ script.getBytes(charset)
+}
 
 // transactioning
 
-case class Multi() extends Cmd { def asBin = Seq(MULTI) }
-case class Exec() extends Cmd { def asBin = Seq(EXEC) }
-case class Discard() extends Cmd { def asBin = Seq(DISCARD) }
-case class Watch(keys: Seq[String])  extends Cmd { def asBin = WATCH :: keys.map(_.getBytes(charset)).toList }
-case class Unwatch()  extends Cmd { def asBin = Seq(UNWATCH) }
+case class Multi() extends Cmd {
+  def asBin = Seq(MULTI)
+}
+
+case class Exec() extends Cmd {
+  def asBin = Seq(EXEC)
+}
+
+case class Discard() extends Cmd {
+  def asBin = Seq(DISCARD)
+}
+
+case class Watch(keys: Seq[String]) extends Cmd {
+  def asBin = WATCH :: keys.map(_.getBytes(charset)).toList
+}
+
+case class Unwatch() extends Cmd {
+  def asBin = Seq(UNWATCH)
+}
 
 // pub/sub
 
@@ -505,14 +555,14 @@ case class Publish(channel: String, v: Array[Byte]) extends Cmd {
 
 case class Subscribe(channels: Seq[String], handler: MultiBulkDataResult => Unit) extends Cmd {
   def asBin =
-    (if(hasPattern) PSUBSCRIBE else SUBSCRIBE) :: channels.toList.map(_.getBytes(charset))
+    (if (hasPattern) PSUBSCRIBE else SUBSCRIBE) :: channels.toList.map(_.getBytes(charset))
 
   def hasPattern = channels.exists(s => s.contains("*") || s.contains("?"))
 }
 
 case class Unsubscribe(channels: Seq[String]) extends Cmd {
   def asBin =
-    (if(channels.exists(s => s.contains("*") || s.contains("?"))) PUNSUBSCRIBE else UNSUBSCRIBE) :: channels.toList.map(_.getBytes(charset))
+    (if (channels.exists(s => s.contains("*") || s.contains("?"))) PUNSUBSCRIBE else UNSUBSCRIBE) :: channels.toList.map(_.getBytes(charset))
 }
 
 case class UnsubscribeAll() extends Cmd {
@@ -534,22 +584,30 @@ case class PfMerge(dst: String, keys: Seq[String]) extends Cmd {
 }
 
 // utils
-case class Ping() extends Cmd { def asBin = Seq(PING) }
-case class Info() extends Cmd { def asBin = Seq(INFO) }
-case class FlushAll() extends Cmd { def asBin = Seq(FLUSHALL) }
-case class Auth(password: String) extends Cmd { def asBin = Seq(AUTH, password.getBytes(charset)) }
-case class Select(db: Int) extends Cmd { def asBin = Seq(SELECT, db.toString.getBytes(charset)) }
+case class Ping() extends Cmd {
+  def asBin = Seq(PING)
+}
+
+case class Info() extends Cmd {
+  def asBin = Seq(INFO)
+}
+
+case class FlushAll() extends Cmd {
+  def asBin = Seq(FLUSHALL)
+}
+
+case class Auth(password: String) extends Cmd {
+  def asBin = Seq(AUTH, password.getBytes(charset))
+}
+
+case class Select(db: Int) extends Cmd {
+  def asBin = Seq(SELECT, db.toString.getBytes(charset))
+}
 
 // geo
-
-case class GeoAdd2(key: String, values: Seq[(Array[Byte],Array[Byte])]) extends Cmd with ArrayFlatten {
-  def asBin = Seq(GEOADD, values.flatten.toArray)
+case class GeoAdd(key: String, values: Seq[(Array[Byte], Array[Byte], Array[Byte])]) extends Cmd {
+  def asBin = Seq(GEOADD) ++ values.flatMap(kv => Seq(kv._1, kv._2, kv._3))
 }
-
-case class GeoAdd3(key: String, values: Seq[(Array[Byte],Array[Byte],Array[Byte])]) extends Cmd with ArrayFlatten {
-  def asBin = Seq(GEOADD, values.flatten.toArray)
-}
-
 
 case class GeoDist(key: String, member1: String, member2: String, unit: String) extends Cmd {
   def asBin = if ("m".equals(unit)) {
@@ -566,6 +624,126 @@ case class GeoHash(key: String, members: Seq[String]) extends Cmd {
 case class GeoPos(key: String, members: Seq[String]) extends Cmd {
   def asBin = GEOPOS :: key.getBytes(charset) :: members.map(_.getBytes(charset)).toList
 }
+
 // TODO: case class GeoRadius extends Cmd { def asBin = GAORADIUS :: Nil }
 
 // TODO: case class GeoRadiusByMember extends Cmd { def asBin = GEORADIUSBYMEMBER :: Nil }
+
+//sorted set
+case class Zadd(key: String, values: Seq[(Float, Array[Byte])], opts: ZaddOptions = ZaddOptions()) extends Cmd {
+  def asBin = Seq(ZADD, key.getBytes(charset)) ++ opts.asBin ++ values.flatMap(kv => List(kv._1.toString.getBytes, kv._2))
+}
+
+case class Zcard(key: String) extends Cmd {
+  def asBin = Seq(ZCARD, key.getBytes(charset))
+}
+
+case class Zcount(key: String, min: Float, max: Float) extends Cmd {
+  def asBin = Seq(ZCOUNT, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset))
+}
+
+case class Zincrby(key: String, increment: Float, member: Array[Byte]) extends Cmd {
+  def asBin = Seq(ZINCRBY, key.getBytes(charset), increment.toString.getBytes(charset), member)
+}
+
+case class ZINTERSTORE(key: String) extends Cmd {
+  def asBin = ???
+}
+
+case class Zlexcount(key: String, min: Array[Byte], max: Array[Byte]) extends Cmd {
+  def asBin = Seq(ZLEXCOUNT, key.getBytes(charset), min, max)
+}
+
+case class Zrange(key: String, start: Int, stop: Int, withScores: Boolean) extends Cmd {
+  def asBin = {
+    val _withScores = if (withScores) Seq(WITHSCORES) else Nil
+    Seq(ZRANGE, key.getBytes(charset), start.toString.getBytes(charset), stop.toString.getBytes(charset)) ++ _withScores
+  }
+}
+
+case class ZrangeByLex(key: String, min: String, max: String, limit: Option[Limit]) extends Cmd {
+  def asBin = {
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    Seq(ZRANGEBYLEX, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ withlimits
+  }
+}
+
+case class ZrangeByScore(key: String, min: String, max: String, withScores: Boolean, limit: Option[Limit]) extends Cmd {
+  def asBin = {
+    val _withScores = if (withScores) Seq(WITHSCORES) else Nil
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    Seq(ZRANGEBYSCORE, key.getBytes(charset), min.getBytes(charset), max.getBytes(charset)) ++ _withScores ++ withlimits
+  }
+}
+
+case class Zrank(key: String, member: Array[Byte]) extends Cmd {
+  def asBin = {
+    Seq(ZRANK, key.getBytes(charset), member)
+  }
+}
+
+case class Zrem(key: String, members: Seq[Array[Byte]]) extends Cmd {
+  def asBin = {
+    Seq(ZREM, key.getBytes(charset)) ++ members
+  }
+}
+
+case class ZremRangeByLex(key: String, min: String, max: String) extends Cmd {
+  def asBin = {
+    Seq(ZREMRANGEBYLEX, key.getBytes(charset), min.getBytes(charset), max.getBytes(charset))
+  }
+}
+
+case class ZremRangeByRank(key: String, startRange: Int, stopRange: Int) extends Cmd {
+  def asBin = {
+    Seq(ZREMRANGEBYRANK, key.getBytes(charset), startRange.toString.getBytes(charset), stopRange.toString.getBytes(charset))
+  }
+}
+
+case class ZremRangeByScore(key: String, minScore: String, maxScore: String) extends Cmd {
+  def asBin = {
+    Seq(ZREMRANGEBYSCORE, key.getBytes(charset), minScore.toString.getBytes(charset), maxScore.toString.getBytes(charset))
+  }
+}
+
+case class ZrevRange(key: String, start: Int, stop: Int) extends Cmd {
+  def asBin = {
+    Seq(ZREVRANGE, key.getBytes(charset), start.toString.getBytes(charset), stop.toString.getBytes(charset))
+  }
+}
+
+case class ZrevRangeByLex(key: String, min: String, max: String, limit: Option[Limit]) extends Cmd {
+  def asBin = {
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    Seq(ZREVRANGEBYLEX, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ withlimits
+  }
+}
+
+case class ZrevRangeByScore(key: String, min: String, max: String, limit: Option[Limit], withScores: Boolean) extends Cmd {
+  def asBin = {
+    val withlimits = limit.map(_.asBin).getOrElse(Nil)
+    val _withScores = if (withScores) Seq(WITHSCORES) else Nil
+    Seq(ZREVRANGEBYSCORE, key.getBytes(charset), min.toString.getBytes(charset), max.toString.getBytes(charset)) ++ _withScores ++ withlimits
+  }
+}
+
+case class Zrevrank(key: String, member: Array[Byte]) extends Cmd {
+  def asBin = {
+    Seq(ZREVRANK, key.getBytes(charset), member)
+  }
+}
+
+case class Zscore(key: String, member: Array[Byte]) extends Cmd {
+  def asBin = {
+    Seq(ZSCORE, key.getBytes(charset), member)
+  }
+}
+
+case class Zunionstore(dstZsetName: String, zsetNumber: Int, srcZets: Seq[String], weights: Seq[Double], agregationFunc: Agregation = SumAgregation) extends Cmd {
+  def asBin = {
+    val _weights: Seq[Array[Byte]] = if (weights.isEmpty) Nil else Seq("WEIGHTS".getBytes(charset)) ++ weights.map(_.toString.getBytes(charset))
+
+    Seq(ZUNIONSTORE, dstZsetName.getBytes(charset), zsetNumber.toString.getBytes(charset)) ++ srcZets.map(_.getBytes(charset)) ++
+      _weights ++ Seq("AGGREGATE".getBytes(charset), agregationFunc.asBin)
+  }
+}

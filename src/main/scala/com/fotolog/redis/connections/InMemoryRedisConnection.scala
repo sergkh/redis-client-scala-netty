@@ -3,6 +3,7 @@ package com.fotolog.redis.connections
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors}
 
+import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{NX, XX, NO}
 import com.fotolog.redis.{KeyType, RedisException}
 
 import scala.collection.JavaConversions._
@@ -157,6 +158,40 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
         ) getOrElse MultiBulkDataResult(Seq())
   }
 
+  private[this] def sortedSetsCmd: PartialFunction[Cmd, Result] = {
+    case zadd: Zadd =>
+
+      if (zadd.opts.withIncOpt && zadd.values.length > 1) {
+        throw new RedisException("ERR INCR option supports a single increment-element pair")
+      }
+
+      val args = zadd.values.map(kv => BytesWrapper(kv._2) -> kv._1).toMap
+      val orig = optVal(zadd.key) map(_.asZset) getOrElse Map()
+
+      //TODO: zadd.opts.withIncOpt
+      zadd.opts.modifyOpts match {
+        case XX =>
+          //Only update elements that already exist. Never add elements
+          val keys = orig.keySet.intersect(args.keySet)
+          map.put(zadd.key, Data.zset(orig ++ args.filterKeys(keys.contains)))
+
+          if (zadd.opts.withResultOpts) {
+            //Modify the return value from the number of new elements added, to the total number of elements changed
+            args.keySet.intersect(keys).size
+          } else {
+            keys.size
+          }
+        case NX =>
+          //Don't update already existing elements. Always add new elements
+          val keys = args.keySet.diff(orig.keySet)
+          map.put(zadd.key, Data.zset(orig ++ args.filterKeys(keys.contains)))
+          keys.size
+        case NO =>
+          map.put(zadd.key, Data.zset(orig ++ args))
+          args.keySet.diff(orig.keySet).size
+      }
+  }
+
   private[this] def pubSubCmd: PartialFunction[Cmd, Result] = {
 
     case s: Subscribe =>
@@ -174,11 +209,11 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
       val subscribers = server.matchingSubscribers(channel)
 
       subscribers.foreach {
-        case (conn, pattern, subscribe) if subscribe.hasPattern =>
+        case (_, pattern, subscribe) if subscribe.hasPattern =>
           subscribe.handler(MultiBulkDataResult(Seq(
             str2res("pmessage"), str2res(pattern), str2res(channel), bytes2res(data)
           )))
-        case (conn, pattern, subscribe) =>
+        case (_, _, subscribe) =>
           subscribe.handler(MultiBulkDataResult(Seq(
             str2res("message"), str2res(channel), bytes2res(data)
           )))
@@ -287,7 +322,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
   }
 
   private[this] def syncSend: PartialFunction[Cmd, Result] =
-    hashCmd orElse setsCmd orElse pubSubCmd orElse scriptingCmd orElse keyCmd orElse serverCmd orElse unsupportedCmd
+    hashCmd orElse setsCmd orElse pubSubCmd orElse scriptingCmd orElse keyCmd orElse serverCmd orElse sortedSetsCmd orElse unsupportedCmd
 
   private[this] implicit def int2res(v: Int): BulkDataResult = BulkDataResult(Some(v.toString.getBytes))
 
@@ -347,6 +382,11 @@ private[connections] case class Data(v: AnyRef, ttl: Int = -1, keyType: KeyType 
     case _ => throw new RedisException(ErrMessages.ERR_INVALID_TYPE)
   }
 
+  def asZset = keyType match {
+    case KeyType.Zset => v.asInstanceOf[Map[BytesWrapper, Float]]
+    case _ => throw new RedisException(ErrMessages.ERR_INVALID_TYPE)
+  }
+
   def expired = ttl != -1 && Platform.currentTime - stamp > (ttl * 1000L)
   def secondsLeft = if (ttl == -1) -1 else (ttl - (Platform.currentTime - stamp) / 1000).toInt
 }
@@ -355,6 +395,7 @@ private[connections] object Data {
   def str(d: Array[Byte], ttl: Int = -1) = Data(d, ttl, keyType = KeyType.String)
   def hash(map: Map[String, Array[Byte]], ttl: Int = -1) = Data(map, ttl, keyType = KeyType.Hash)
   def set(set: Set[BytesWrapper], ttl: Int = -1) = Data(set, ttl, keyType = KeyType.Set)
+  def zset(zset: Map[BytesWrapper, Float], ttl: Int = -1) = Data(zset, ttl, keyType = KeyType.Zset)
 }
 
 private[connections] case class FakeServer(

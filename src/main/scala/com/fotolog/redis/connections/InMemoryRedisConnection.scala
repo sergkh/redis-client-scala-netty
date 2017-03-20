@@ -3,7 +3,7 @@ package com.fotolog.redis.connections
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors}
 
-import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{NX, XX}
+import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{NX, XX, NO}
 import com.fotolog.redis.{KeyType, RedisException}
 
 import scala.collection.JavaConversions._
@@ -170,7 +170,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
 
       //TODO: zadd.opts.withIncOpt
       zadd.opts.modifyOpts match {
-        case Some(XX) =>
+        case XX =>
           //Only update elements that already exist. Never add elements
           val keys = orig.keySet.intersect(args.keySet)
           map.put(zadd.key, Data.zset(orig ++ args.filterKeys(keys.contains)))
@@ -181,12 +181,12 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
           } else {
             keys.size
           }
-        case Some(NX) =>
+        case NX =>
           //Don't update already existing elements. Always add new elements
           val keys = args.keySet.diff(orig.keySet)
           map.put(zadd.key, Data.zset(orig ++ args.filterKeys(keys.contains)))
           keys.size
-        case None =>
+        case NO =>
           map.put(zadd.key, Data.zset(orig ++ args))
           args.keySet.diff(orig.keySet).size
       }

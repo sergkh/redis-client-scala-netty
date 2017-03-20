@@ -1,6 +1,6 @@
 package com.fotolog.redis.utils
 
-import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.ModifyOpts
+import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{ModifyOpts, NO}
 
 /**
   * @author Yaroslav Derman <yaroslav.derman@gmail.com>.
@@ -9,7 +9,7 @@ import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.ModifyOpts
 object SortedSetOptions {
 
   case class ZaddOptions(
-                          modifyOpts: Option[ModifyOpts] = None,
+                          modifyOpts: ModifyOpts = NO,
                           withResultOpts: Boolean = false,
                           withIncOpt: Boolean = false
                         ) {
@@ -17,7 +17,9 @@ object SortedSetOptions {
     def asBin: Seq[Array[Byte]] = {
       val resultOptionsBytes =  if (withResultOpts) Some("CH".getBytes) else None
       val incOptionsBytes = if (withIncOpt) Some("INCR".getBytes) else None
-      Seq(modifyOpts.map(_.asBin), resultOptionsBytes, incOptionsBytes).collect {
+      val modifyOptionsByte = if (modifyOpts == NO) None else Some(modifyOpts.asBin)
+
+      Seq(modifyOptionsByte, resultOptionsBytes, incOptionsBytes).collect {
         case Some(bytes) => bytes
       }
     }
@@ -31,6 +33,8 @@ object SortedSetOptions {
     object NX extends ModifyOpts("NX")
 
     object XX extends ModifyOpts("XX")
+
+    object NO extends ModifyOpts("Without any options")
 
   }
 

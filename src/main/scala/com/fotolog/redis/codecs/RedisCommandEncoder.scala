@@ -20,21 +20,12 @@ private[redis] class RedisCommandEncoder extends MessageToByteEncoder[ResultFutu
   }
 
   private def binaryCmd(cmdParts: Seq[Array[Byte]], out: ByteBuf) = {
-    val params = new Array[Array[Byte]](3 * cmdParts.length + 1)
-    params(0) = ("*" + cmdParts.length + "\r\n").getBytes
-    // num binary chunks
-    var i = 1
-    for (p <- cmdParts) {
-      params(i) = ("$" + p.length + "\r\n").getBytes // len of the chunk
-      i = i + 1
-      params(i) = p
-      i = i + 1
-      params(i) = EOL
-      i = i + 1
-    }
+    out.writeBytes(("*" + cmdParts.length + "\r\n").getBytes)
 
-    params.foreach { bytes =>
-      out.writeBytes(bytes)
+    for (p <- cmdParts) {
+      out.writeBytes(("$" + p.length + "\r\n").getBytes) // len of the chunk
+      out.writeBytes(p)
+      out.writeBytes(EOL)
     }
   }
 }

@@ -15,10 +15,10 @@ sealed abstract class ConnectionState(queue: BlockingQueue[ResultFuture]) {
 
   var currentComplexResponse: Option[ResultFuture] = None
 
-  def fillResult(r: Result): ResultFuture = {
+  def fillSuccessResult(r: SuccessResult): ResultFuture = {
     val nextFuture = nextResultFuture()
 
-    nextFuture.fillWithResult(r)
+    nextFuture.fillWithSuccess(r)
 
     if (!nextFuture.complete) {
       currentComplexResponse = Some(nextFuture)
@@ -53,8 +53,8 @@ sealed abstract class ConnectionState(queue: BlockingQueue[ResultFuture]) {
   */
 case class NormalConnectionState(queue: BlockingQueue[ResultFuture]) extends ConnectionState(queue) {
   def handle(r: Result): Option[ConnectionState] = r match {
-    case r: Result =>
-      val respFuture = fillResult(r)
+    case r: SuccessResult =>
+      val respFuture = fillSuccessResult(r)
 
       respFuture.cmd match {
         case subscribeCmd: Subscribe if respFuture.complete =>
@@ -86,7 +86,7 @@ case class SubscribedConnectionState(queue: BlockingQueue[ResultFuture], subscri
   def handle(r: Result): Option[ConnectionState] = {
     r match {
       case MultiBulkDataResult(Seq(mode, channel, bin)) if !util.Arrays.equals(mode.data.get, "message".getBytes) =>
-        val respFuture = fillResult(MultiBulkDataResult(Seq(mode, channel, bin)))
+        val respFuture = fillSuccessResult(MultiBulkDataResult(Seq(mode, channel, bin)))
 
         if (respFuture.complete) {
           respFuture.cmd match {
@@ -100,7 +100,6 @@ case class SubscribedConnectionState(queue: BlockingQueue[ResultFuture], subscri
         }
 
       case e: MultiBulkDataResult =>
-
         val channel = e.results(1).data.map(new String(_)).get
 
         subscribers.foreach { case (pattern, handler) =>

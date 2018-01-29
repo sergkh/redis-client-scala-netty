@@ -7,16 +7,18 @@ import scala.concurrent.Promise
 
 private[redis] sealed abstract class Result
 
+trait SuccessResult extends Result
+
 case class ErrorResult(err: String) extends Result
 
-case class SingleLineResult(msg: String) extends Result
+case class SingleLineResult(msg: String) extends SuccessResult
 
-case class BulkDataResult(data: Option[Array[Byte]]) extends Result {
+case class BulkDataResult(data: Option[Array[Byte]]) extends SuccessResult {
   override def toString =
     "BulkDataResult(%s)".format(data.map(d => new String(d)).getOrElse(""))
 }
 
-case class MultiBulkDataResult(results: Seq[BulkDataResult]) extends Result
+case class MultiBulkDataResult(results: Seq[BulkDataResult]) extends SuccessResult
 
 /**
   * Holds command and promise for response for that command.
@@ -29,7 +31,7 @@ private[redis] class ResultFuture(val cmd: Cmd) {
 
   def future = promise.future
 
-  def fillWithResult(r: Result): Boolean = {
+  def fillWithSuccess(r: SuccessResult): Boolean = {
     promise.success(r); true
   }
 
@@ -50,7 +52,7 @@ private[redis] class ResultFuture(val cmd: Cmd) {
 private[redis] case class ComplexResultFuture(complexCmd: Cmd, parts: Int) extends ResultFuture(complexCmd) {
   val responses = new ListBuffer[BulkDataResult]()
 
-  override def fillWithResult(r: Result) = {
+  override def fillWithSuccess(r: SuccessResult) = {
     r match {
       case MultiBulkDataResult(Seq(subCmd, channel, result)) =>
         responses += result

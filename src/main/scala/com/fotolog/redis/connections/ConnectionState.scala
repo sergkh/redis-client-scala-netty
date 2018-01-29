@@ -53,9 +53,6 @@ sealed abstract class ConnectionState(queue: BlockingQueue[ResultFuture]) {
   */
 case class NormalConnectionState(queue: BlockingQueue[ResultFuture]) extends ConnectionState(queue) {
   def handle(r: Result): Option[ConnectionState] = r match {
-    case err: ErrorResult =>
-      fillError(err)
-      None
     case r: Result =>
       val respFuture = fillResult(r)
 
@@ -65,6 +62,10 @@ case class NormalConnectionState(queue: BlockingQueue[ResultFuture]) extends Con
         case _ =>
           None
       }
+
+    case err: ErrorResult =>
+      fillError(err)
+      None
   }
 }
 
@@ -84,9 +85,6 @@ case class SubscribedConnectionState(queue: BlockingQueue[ResultFuture], subscri
 
   def handle(r: Result): Option[ConnectionState] = {
     r match {
-      case err: ErrorResult =>
-        fillError(err)
-
       case MultiBulkDataResult(Seq(mode, channel, bin)) if !util.Arrays.equals(mode.data.get, "message".getBytes) =>
         val respFuture = fillResult(MultiBulkDataResult(Seq(mode, channel, bin)))
 
@@ -108,6 +106,9 @@ case class SubscribedConnectionState(queue: BlockingQueue[ResultFuture], subscri
         subscribers.foreach { case (pattern, handler) =>
           if (channel == pattern) handler(e)
         }
+
+      case err: ErrorResult =>
+        fillError(err)
 
       case other =>
         new RuntimeException("Unsupported response from server in subscribed mode: " + other)

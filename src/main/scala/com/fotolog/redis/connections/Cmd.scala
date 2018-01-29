@@ -595,7 +595,7 @@ case class Zincrby(key: String, increment: Float, member: Array[Byte]) extends C
   def asBin = Seq(ZINCRBY, key.getBytes(charset), increment.toString.getBytes(charset), member)
 }
 
-case class ZINTERSTORE(key: String) extends Cmd {
+case class Zinterscore(key: String) extends Cmd {
   def asBin = ???
 }
 

@@ -16,7 +16,9 @@ publishArtifact in Test := false
 
 bintrayReleaseOnPublish := false
 bintrayPackage := name.value
-bintrayOrganization in bintray := Some("yarosman")
+bintrayOrganization in bintray := Some("sergkh")
+bintrayPackageLabels := Seq("scala", "redis", "netty")
+
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
 val nettyVersion = "4.1.20.Final"

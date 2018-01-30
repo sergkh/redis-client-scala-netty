@@ -7,7 +7,7 @@
 * protocol pipelining
 * connection multiplexing
 * in-memory redis implementation which can come in handy for testing (in active development)
-* scala 2.12 support
+* scala 2.11, 2.12 support
 
 Changes from [original version](https://github.com/andreyk0/redis-client-scala-netty):
 * added support of [scripting](http://redis.io/commands#scripting) commands
@@ -16,6 +16,7 @@ Changes from [original version](https://github.com/andreyk0/redis-client-scala-n
 * moved to sbt
 * in-memory client
 * Distributed lock implementation ([Redlock](http://redis.io/topics/distlock))
+* Netty 4.1.x
 
 ## Building
     $ sbt package

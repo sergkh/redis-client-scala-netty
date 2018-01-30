@@ -11,6 +11,8 @@ private[redis] object Cmd {
 
   val SPACE = " ".getBytes
   val EOL = "\r\n".getBytes
+  val STRING_START = "$".getBytes
+  val ARRAY_START = "*".getBytes
 
   val NX = "NX".getBytes
   val XX = "XX".getBytes

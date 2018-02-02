@@ -18,7 +18,7 @@ private[redis] object ResponseType {
     }
   }
 }
-private[redis] sealed class ResponseType(val b: Byte)
+private[redis] sealed abstract class ResponseType(val b: Byte)
 private[redis] case object Error extends ResponseType('-')
 private[redis] case object SingleLine extends ResponseType('+')
 private[redis] case object BulkData extends ResponseType('$')

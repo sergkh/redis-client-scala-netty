@@ -28,7 +28,7 @@ private[redis] trait PubSubCommands extends ClientCommands {
 
       val channelName = channelBin.data.map(BinaryConverter.StringConverter.read).get
 
-      try{
+      try {
         block(channelName, dataBin.data.map(conv.read).get)
       } catch {
         case e: Exception =>

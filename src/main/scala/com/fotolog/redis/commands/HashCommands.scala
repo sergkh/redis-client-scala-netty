@@ -57,18 +57,7 @@ private[redis] trait HashCommands extends ClientCommands {
 
   def hvals[T](key: String)(implicit conv: BinaryConverter[T]): Seq[T] = await { hvalsAsync(key)(conv) }
 
-  def hgetallAsync[T](key: String)(implicit conv: BinaryConverter[T]): Future[Map[String,T]] = r.send(Hgetall(key)).map {
-    case MultiBulkDataResult(List()) =>
-      Map()
-    case MultiBulkDataResult(results) =>
-      var take = false
-      results.zip(results.tail).filter { (_) => take = !take; take }.filter {
-        case (k, BulkDataResult(Some(_))) => true
-        case (k, BulkDataResult(None)) => false
-      }.map { kv => BinaryConverter.StringConverter.read(kv._1.data.get) -> conv.read(kv._2.data.get)}.toMap
-    case unknown =>
-      throw UnsupportedResponseException("Unsupported response type: " + unknown)
-  }
+  def hgetallAsync[T](key: String)(implicit conv: BinaryConverter[T]): Future[Map[String,T]] = r.send(Hgetall(key)).map(multiBulkDataResultToMap(BinaryConverter.StringConverter, conv))
 
   def hgetall[T](key: String)(implicit conv: BinaryConverter[T]): Map[String,T] = await { hgetallAsync(key)(conv) }
 

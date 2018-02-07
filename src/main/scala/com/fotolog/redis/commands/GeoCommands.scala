@@ -14,8 +14,8 @@ private[redis] trait GeoCommands extends ClientCommands {
 
   import com.fotolog.redis.commands.ClientCommands._
 
-  def geoAdd3Async(key: String, members: (Double, Double, String)* ): Future[Int] =
-    r.send(GeoAdd3(key, members.map {
+  def geoAddAsync(key: String, members: (Double, Double, String)* ): Future[Int] =
+    r.send(GeoAdd(key, members.map {
       case (lat, lon, mem) => (
         BinaryConverter.DoubleConverter.write(lat),
         BinaryConverter.DoubleConverter.write(lon),
@@ -23,17 +23,7 @@ private[redis] trait GeoCommands extends ClientCommands {
       )
     })).map(integerResultAsInt)
 
-  def geoAdd3(key: String, members: (Double, Double, String)* ): Int = await { geoAdd3Async(key, members:_*) }
-
-  def geoAdd2Async(key: String, members: (Double, String)* ): Future[Int] =
-    r.send(GeoAdd2(key, members.map {
-      case (lat, mem) => (
-        BinaryConverter.DoubleConverter.write(lat),
-        BinaryConverter.StringConverter.write(mem)
-        )
-    })).map(integerResultAsInt)
-
-  def geoAdd2(key: String, members: (Double, String)* ): Int = await { geoAdd2Async(key, members:_*) }
+  def geoAdd(key: String, members: (Double, Double, String)* ): Int = await { geoAddAsync(key, members:_*) }
 
   def geoDistAsync(key: String, member1: String, member2: String, unit: GeoUnit = GeoUnit.Meters): Future[Double] =
     r.send(GeoDist(key, unit.name, member1, member2)).map(doubleResultAsDouble)
@@ -50,6 +40,5 @@ private[redis] trait GeoCommands extends ClientCommands {
     r.send(GeoPos(key, members)).map(multiBulkDataResultToFilteredSeq(BinaryConverter.StringConverter))
 
   def geoPos(key: String, members: String*): Seq[String] = await { geoPosAsync(key, members:_*) }
-
 
 }

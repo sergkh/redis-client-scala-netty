@@ -49,7 +49,7 @@ object ClientBenchmark extends Bench.LocalTime {
         val future = Future.traverse(1 to i) { i =>
           client.pingAsync
         }
-        Await.result(future, 30 seconds)
+        Await.result(future, 30.seconds)
       }
     }
 
@@ -69,7 +69,7 @@ object ClientBenchmark extends Bench.LocalTime {
         val future = Future.traverse(1 to i) { i =>
           client.getAsync[String]("foo")
         }
-        Await.result(future, 30 seconds)
+        Await.result(future, 30.seconds)
       }
     }
 
@@ -88,7 +88,7 @@ object ClientBenchmark extends Bench.LocalTime {
         val future = Future.traverse(1 to i) { i =>
           client.setAsync("foo", "bar")
         }
-        Await.result(future, 30 seconds)
+        Await.result(future, 30.seconds)
       }
     }
   }

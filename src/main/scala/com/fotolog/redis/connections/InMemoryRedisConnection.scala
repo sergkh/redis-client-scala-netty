@@ -6,7 +6,7 @@ import java.util.concurrent.{ConcurrentHashMap, Executors}
 import com.fotolog.redis.utils.SortedSetOptions.ZaddOptions.{NX, XX, NO}
 import com.fotolog.redis.{KeyType, RedisException}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.compat.Platform
 import scala.concurrent.{ExecutionContext, Future}
@@ -269,6 +269,7 @@ class InMemoryRedisConnection(dbName: String) extends RedisConnection {
     case Keys(pattern) =>
       MultiBulkDataResult(
         map.keys()
+          .asScala
           .filter(_.matches(pattern.replace("*", ".*?").replace("?", ".?")))
           .map(k => BulkDataResult(Some(k.getBytes))).toSeq
       )

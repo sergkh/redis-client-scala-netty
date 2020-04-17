@@ -10,6 +10,7 @@ import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.Unpooled
 import io.netty.channel._
 import io.netty.channel.epoll.{EpollEventLoopGroup, EpollSocketChannel}
+import io.netty.channel.kqueue.{KQueueEventLoopGroup, KQueueSocketChannel}
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
@@ -20,7 +21,7 @@ import scala.util.Try
 
 object Netty4RedisConnection {
 
-  private[redis] val cmdQueue = new ArrayBlockingQueue[(Netty4RedisConnection, ResultFuture)](2048)
+  private[redis] val cmdQueue = new ArrayBlockingQueue[(Netty4RedisConnection, ResultFuture)](4096)
   private[redis] val commandEncoder = new RedisCommandEncoder()
 
   private[redis] val queueProcessor = new Runnable {
@@ -60,10 +61,13 @@ class Netty4RedisConnection(val host: String, val port: Int) extends RedisConnec
     val osName = Option(System.getProperties.getProperty("os.name")).map(_.toLowerCase)
     val isUnix = osName.exists(os => os.contains("nix") || os.contains("nux") || os.contains("aix"))
 
-    if (isUnix) {
-      new EpollEventLoopGroup() -> classOf[EpollSocketChannel]
-    } else {
-      new NioEventLoopGroup() -> classOf[NioSocketChannel]
+    osName match {
+      case Some(linux) if linux.contains("nux") =>
+        new EpollEventLoopGroup() -> classOf[EpollSocketChannel]
+      case Some(osx) if osx.contains("mac") =>
+        new KQueueEventLoopGroup() -> classOf[KQueueSocketChannel]
+      case _ =>
+        new NioEventLoopGroup() -> classOf[NioSocketChannel]
     }
   }
 

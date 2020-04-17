@@ -58,7 +58,7 @@ private[redis] case class ComplexResultFuture(complexCmd: Cmd, parts: Int) exten
         responses += result
 
         if (responses.length == parts) {
-          promise.success(MultiBulkDataResult(responses))
+          promise.success(MultiBulkDataResult(responses.toSeq))
           true
         } else {
           false

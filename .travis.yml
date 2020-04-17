@@ -1,8 +1,9 @@
+dist: trusty
 language: scala
 scala:
 - 2.12.4
 jdk:
-  - openjdk11
+  - oraclejdk8
 env:
   global:
   - REDIS_TAG=3.2.0

@@ -102,7 +102,7 @@ class InMemoryClientSpec extends FlatSpec with Matchers with TestClient {
 
     assert(client.hexists("hash_zoo-key", "vaz"), "Key 'vaz' should exist in map `zoo-key`")
     assert(4 === client.hlen("hash_zoo-key"), "Length of map elements should be 2")
-    client.hkeys("hash_zoo-key") shouldBe Seq("wry", "vaz", "baz", "foo")
+    client.hkeys("hash_zoo-key").toSet shouldBe Set("wry", "vaz", "baz", "foo")
     client.hkeys("hash_nonexistent-key") shouldBe Nil
   }
 
